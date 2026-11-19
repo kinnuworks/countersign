@@ -13,7 +13,12 @@ final class Recorder: NSObject, SCStreamDelegate, SCRecordingOutputDelegate {
 
   func start(windowID: CGWindowID, url: URL, fps: Int) async throws {
     let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
-    guard let window = content.windows.first(where: { $0.windowID == windowID }) else {
+    // windowID 0 means: the largest window whose title contains WINREC_TITLE.
+    let wanted = ProcessInfo.processInfo.environment["WINREC_TITLE"] ?? ""
+    let match: SCWindow? = windowID != 0
+      ? content.windows.first(where: { $0.windowID == windowID })
+      : content.windows.filter { ($0.title ?? "").contains(wanted) && $0.frame.width > 400 }.max(by: { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height })
+    guard let window = match else {
       throw NSError(domain: "winrec", code: 1, userInfo: [NSLocalizedDescriptionKey: "window \(windowID) not found"])
     }
     let filter = SCContentFilter(desktopIndependentWindow: window)
