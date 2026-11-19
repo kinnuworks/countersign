@@ -18,6 +18,7 @@ export type DriverStep =
   | { do: 'terminal'; text: string; name?: string }
   | { do: 'focusPanel' }
   | { do: 'allowCommand'; allow?: boolean; timeoutMs?: number }
+  | { do: 'finish'; timeoutMs?: number }
   | { do: 'hunk'; file?: number; n: number; decision: 'accepted' | 'rejected' };
 
 export interface DriverHooks {
@@ -111,6 +112,22 @@ export function startDriver(ctx: vscode.ExtensionContext, hooks: DriverHooks) {
         }
         await sleep(900);
         hooks.answerCommand(s.allow ?? true);
+        return;
+      }
+      case 'finish': {
+        // Plays the user through the rest of a run: allows each command and accepts each later review.
+        const t0 = Date.now();
+        while (hooks.state().running) {
+          if (Date.now() - t0 > (s.timeoutMs ?? 600_000)) throw new Error('driver: run did not finish');
+          if (hooks.hasPendingCommand()) {
+            await sleep(900);
+            hooks.answerCommand(true);
+          } else if (hooks.state().review) {
+            await sleep(1800);
+            await vscode.commands.executeCommand('countersign.acceptAll');
+          }
+          await sleep(250);
+        }
         return;
       }
       case 'focusPanel':

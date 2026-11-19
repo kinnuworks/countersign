@@ -90,7 +90,7 @@ say '{"do":"command","id":"countersign.undo"}' '{"do":"wait","ms":1500}' "{\"do\
 wait_log; mark "task B"
 say '{"do":"command","id":"workbench.action.closeAllEditors"}' "{\"do\":\"agent\",\"text\":$(j "$TASK_B"),\"cps\":55}" \
     '{"do":"waitFor","what":"review","timeoutMs":400000}' '{"do":"wait","ms":5000}' \
-    '{"do":"command","id":"countersign.acceptAll"}' '{"do":"allowCommand","timeoutMs":400000}' '{"do":"waitFor","what":"idle","timeoutMs":400000}' '{"do":"wait","ms":2500}' \
+    '{"do":"command","id":"countersign.acceptAll"}' '{"do":"finish","timeoutMs":600000}' '{"do":"wait","ms":2500}' \
     "{\"do\":\"terminal\",\"text\":$(j "clear && python -m pytest tests/test_cli.py -q 2>&1 | tail -2 && git diff --stat")}" '{"do":"wait","ms":5000}' \
     "{\"do\":\"terminal\",\"text\":$(j "clear && cd ../app && flask --app app config | head -14 && flask --help | grep -A5 Commands; cd ../flask-3.1.3")}" '{"do":"wait","ms":6000}' \
     '{"do":"command","id":"countersign.openSession"}' '{"do":"wait","ms":9000}'

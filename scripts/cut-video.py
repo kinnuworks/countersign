@@ -36,7 +36,7 @@ dur = float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 
 
 cuts = []
 for a, b, s in steps:
-    if s.get('do') in ('waitFor', 'allowCommand') and (s.get('what') == 'idle' or s.get('do') == 'allowCommand'):
+    if (s.get('do') == 'waitFor' and s.get('what') == 'idle') or s.get('do') in ('allowCommand', 'finish'):
         lo, hi = a - t0 + keep, b - t0 - keep
         if hi - lo > 1.0:
             cuts.append((lo, hi))
