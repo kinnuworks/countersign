@@ -12,7 +12,7 @@ test('the agent panel webview script parses', () => {
   assert.ok(start > 0 && end > start, 'html template not found');
   const body = src.slice(start + 'return /* html */ '.length, end + '</html>`'.length);
   // eslint-disable-next-line no-eval
-  const html: string = eval(body.replace(/\$\{[^}]+\}/g, 'X'));
+  const html: string = (0, eval)(body.replace(/\$\{[^}]+\}/g, 'X'));
   const js = html.slice(html.indexOf('<script nonce='), html.lastIndexOf('</script>')).replace(/^<script[^>]*>/, '');
   assert.doesNotThrow(() => new Function(js));
   assert.match(js, /postMessage\(\{ type: 'ready' \}\)/);
