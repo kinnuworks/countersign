@@ -127,6 +127,7 @@ function html(n: string): string {
   #mentions div.sel, #mentions div:hover { background: var(--vscode-editorSuggestWidget-selectedBackground); }
   a { color: var(--vscode-textLink-foreground); cursor: pointer; }
   .muted { opacity: .7; font-size: 11.5px; }
+  code { font-family: var(--vscode-editor-font-family); font-size: 0.92em; background: var(--vscode-textCodeBlock-background); padding: 0 3px; border-radius: 3px; }
 </style></head>
 <body>
 <header>
@@ -153,6 +154,19 @@ const threads = {};
 const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 function add(el) { log.appendChild(el); window.scrollTo(0, document.body.scrollHeight); return el; }
 function div(cls, html) { const d = document.createElement('div'); d.className = cls; if (html !== undefined) d.innerHTML = html; return d; }
+// Minimal, escape-first markdown for model text: code fences, inline code, bold, bullets, headings.
+function md(src) {
+  const parts = String(src).split(/\n?\x60\x60\x60[\w-]*\n?/);
+  return parts.map((p, i) => {
+    if (i % 2) return '<pre class="draft">' + esc(p) + '</pre>';
+    return esc(p)
+      .replace(/\x60([^\x60\n]+)\x60/g, '<code>$1</code>')
+      .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')
+      .replace(/^#{1,4} (.+)$/gm, '<b>$1</b>')
+      .replace(/^[-*] (.+)$/gm, '• $1');
+  }).join('');
+}
+function finishAssistant() { if (assistant && assistant.dataset.raw) { assistant.innerHTML = md(assistant.dataset.raw); } }
 function container(thread) { return thread && thread !== 'main' && threads[thread] ? threads[thread].body : log; }
 
 function partialNewText(args) {
@@ -172,9 +186,9 @@ window.addEventListener('message', ev => {
       $('chain').innerHTML = 'Models: ' + m.chain.map((c, i) => (i ? ' → ' : '') + '<span>' + esc(c) + '</span>').join('') + (m.chain.length > 1 ? ' <span class="muted">(fallback in order)</span>' : '');
       break;
     }
-    case 'running': running = m.running; $('stop').disabled = !running; $('send').disabled = running; if (!running) { assistant = null; draftEl = null; } break;
-    case 'user': { assistant = null; const c = add(div('card user')); c.innerHTML = '<div class="label">' + (m.mode === 'inline' ? 'Inline edit' : 'You') + '</div><div class="msg">' + esc(m.text) + '</div>'; break; }
-    case 'status': add(div('status ' + m.kind, esc(m.text))); assistant = null; break;
+    case 'running': running = m.running; $('stop').disabled = !running; $('send').disabled = running; if (!running) { finishAssistant(); assistant = null; draftEl = null; } break;
+    case 'user': { finishAssistant(); assistant = null; const c = add(div('card user')); c.innerHTML = '<div class="label">' + (m.mode === 'inline' ? 'Inline edit' : 'You') + '</div><div class="msg">' + esc(m.text) + '</div>'; break; }
+    case 'status': add(div('status ' + m.kind, esc(m.text))); finishAssistant(); assistant = null; break;
     case 'session': $('session').disabled = false; add(div('status info', 'TrueForge session started on <b>' + esc(m.model) + '</b> · <a data-act="session">open session</a>')); break;
     case 'context': {
       const pct = Math.min(100, Math.round(100 * m.used / m.budget));
@@ -186,7 +200,7 @@ window.addEventListener('message', ev => {
           ? m.files.map(f => '<div class="file">' + esc(f.path) + ' <span class="muted">' + f.tokens + ' tok</span></div><div class="why">' + esc(f.why) + '</div>').join('')
           : '<div class="file">' + m.files.map(f => esc(f.path)).join(', ') + '</div>')
         + (m.omitted ? '<div class="muted" style="margin-top:4px">Left out: ' + m.omitted + ' files (' + m.omittedSample.map(esc).join(', ') + (m.omitted > m.omittedSample.length ? ', …' : '') + ')</div>' : '');
-      assistant = null; break;
+      finishAssistant(); assistant = null; break;
     }
     case 'thread': {
       if (m.done) { const t = threads[m.thread]; if (t) t.head.innerHTML = '↳ subagent <b>' + esc(t.title) + '</b> · ' + esc(m.status || 'done'); break; }
@@ -196,11 +210,11 @@ window.addEventListener('message', ev => {
       if (m.instructions) c.appendChild(div('muted', esc(m.instructions.slice(0, 280)) + (m.instructions.length > 280 ? '…' : '')));
       const body = div(''); c.appendChild(body);
       threads[m.thread] = { head, body, title: m.title };
-      assistant = null; break;
+      finishAssistant(); assistant = null; break;
     }
     case 'delta': {
-      if (!assistant || assistantThread !== m.thread) { const c = div('msg'); container(m.thread).appendChild(c); assistant = c; assistantThread = m.thread; }
-      assistant.textContent += m.text; window.scrollTo(0, document.body.scrollHeight); break;
+      if (!assistant || assistantThread !== m.thread) { finishAssistant(); const c = div('msg'); c.dataset.raw = ''; container(m.thread).appendChild(c); assistant = c; assistantThread = m.thread; }
+      assistant.dataset.raw += m.text; assistant.textContent = assistant.dataset.raw; window.scrollTo(0, document.body.scrollHeight); break;
     }
     case 'draft': {
       const t = partialNewText(m.preview);
@@ -211,7 +225,7 @@ window.addEventListener('message', ev => {
     case 'tool': {
       draftEl = null;
       const d = div('tool', '⚙ <b>' + esc(m.name) + '</b> ' + esc(m.detail) + (m.result ? ' <span class="res">→ ' + esc(m.result) + '</span>' : ''));
-      container(m.thread).appendChild(d); assistant = null; window.scrollTo(0, document.body.scrollHeight); break;
+      container(m.thread).appendChild(d); finishAssistant(); assistant = null; window.scrollTo(0, document.body.scrollHeight); break;
     }
     case 'review': renderReview(m.snapshot); break;
     case 'git': add(div('status ' + (m.clean ? 'ok' : 'info'), esc(m.text))); break;
@@ -223,7 +237,7 @@ window.addEventListener('message', ev => {
       c.innerHTML = '<div class="label">Run this command? TrueForge is waiting on this approval.</div><pre class="draft">$ ' + esc(m.command) + '</pre>'
         + (m.explanation ? '<div class="why">' + esc(m.explanation) + '</div>' : '')
         + '<div class="row" style="margin-top:4px"><button data-act="cmd" data-id="' + esc(m.id) + '" data-allow="1">Allow</button><button class="secondary" data-act="cmd" data-id="' + esc(m.id) + '" data-allow="0">Deny</button></div>';
-      assistant = null; break;
+      finishAssistant(); assistant = null; break;
     }
     case 'commandDecided': {
       const c = document.getElementById('cmd-' + m.id);

@@ -50,7 +50,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
     vscode.commands.registerCommand('countersign.state', () => ({ ...state, review: reviews.snapshot(), connected: !!cs, journal: cs?.journal.all().map(c => ({ id: c.id, label: c.label, undone: c.undone })) ?? [] })),
     vscode.commands.registerCommand('countersign.cancel', () => cancelRun('Stopped by you')),
     vscode.commands.registerCommand('countersign.undo', () => undo()),
-    vscode.commands.registerCommand('countersign.openSession', () => lastSessionUrl && vscode.env.openExternal(vscode.Uri.parse(lastSessionUrl))),
+    vscode.commands.registerCommand('countersign.openSession', () => openSession()),
     vscode.commands.registerCommand('countersign.agentRequest', (text: string) => agentRun(ctx, text)),
     vscode.commands.registerCommand('countersign.reconnect', async () => {
       // Let an in-flight start finish first, so its MCP registration cannot land after ours.
@@ -324,6 +324,16 @@ async function inlineEdit(ctx: vscode.ExtensionContext, given?: string) {
   }
 }
 
+/** The TrueForge session (turns, tool calls, subagents) in a tab next to the code, or the browser if Simple Browser is off. */
+async function openSession() {
+  if (!lastSessionUrl) return void vscode.window.showInformationMessage('Countersign: no TrueForge session yet.');
+  try {
+    await vscode.commands.executeCommand('simpleBrowser.show', lastSessionUrl);
+  } catch {
+    await vscode.env.openExternal(vscode.Uri.parse(lastSessionUrl));
+  }
+}
+
 let openBox: vscode.InputBox | undefined;
 const pendingCommands = new Map<string, (allow: boolean) => void>();
 
@@ -406,8 +416,7 @@ async function onPanel(m: FromWebview) {
       panel.post({ type: 'commandDecided', id: m.id, allow: m.allow });
       return;
     case 'openSession':
-      if (lastSessionUrl) await vscode.env.openExternal(vscode.Uri.parse(lastSessionUrl));
-      return;
+      return openSession();
     case 'mention': {
       if (!cs) return;
       const q = m.query.toLowerCase();
