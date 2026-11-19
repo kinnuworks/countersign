@@ -39,7 +39,17 @@ export class ReviewManager implements vscode.TextDocumentContentProvider, vscode
   readonly onDidChange = this.changed.event;
   readonly onDidChangeCodeLenses = this.lensChanged.event;
   readonly onState = new vscode.EventEmitter<ReviewSnapshot | null>();
-  private accepted = vscode.window.createTextEditorDecorationType({ backgroundColor: new vscode.ThemeColor('diffEditor.insertedLineBackground'), isWholeLine: true, overviewRulerColor: 'rgba(80,200,120,0.8)', after: { contentText: '  ✓ accepted', color: new vscode.ThemeColor('testing.iconPassed') } });
+  // Accepted lines: the diff's own green, a solid green rule down the left edge (the panel marks
+  // accepted hunks the same way) and a "✓ accepted" note after the first line.
+  private accepted = vscode.window.createTextEditorDecorationType({
+    backgroundColor: new vscode.ThemeColor('diffEditor.insertedLineBackground'),
+    isWholeLine: true,
+    borderColor: new vscode.ThemeColor('testing.iconPassed'),
+    borderStyle: 'solid',
+    borderWidth: '0 0 0 3px',
+    overviewRulerColor: new vscode.ThemeColor('testing.iconPassed'),
+    after: { contentText: '  ✓ accepted', color: new vscode.ThemeColor('testing.iconPassed'), fontWeight: '600' },
+  });
 
   constructor(private readonly root: vscode.Uri) {}
 

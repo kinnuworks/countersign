@@ -1,0 +1,60 @@
+{
+ "taskA": "Treat the values 'off' and 'n' as false as well, case-insensitively, and update the docstring to list every value that is treated as false.",
+ "taskB": "Add a new built-in CLI command flask config that prints the loaded application's configuration as JSON, masking the values of any key containing SECRET, PASSWORD, TOKEN or KEY as \"***\". It must appear in flask --help, be covered by a test, and be documented alongside the other built-in commands.",
+ "context": {
+  "type": "context",
+  "by": "auto",
+  "used": 9653,
+  "budget": 10000,
+  "indexed": 215,
+  "files": [
+   {
+    "path": "src/flask/cli.py",
+    "why": "matches \"built\", \"cli\", \"command\", \"load\" in FlaskGroup.list_commands (L644); path matches \"cli\"; source the change will likely edit; best code match",
+    "tokens": 1150
+   },
+   {
+    "path": "tests/test_cli.py",
+    "why": "matches \"cli\", \"load\", \"help\" in test_help_echo_loading_error (L413); path matches \"cli\"; the task asks for a test; imports flask.cli (its tests); belongs with src/flask/cli.py; best test match",
+    "tokens": 652
+   },
+   {
+    "path": "docs/cli.rst",
+    "why": "matches \"built\", \"command\", \"application\", \"help\" in Command Line Interface (L3); path matches \"cli\"; the task asks for documentation; belongs with src/flask/cli.py; best docs match",
+    "tokens": 1066
+   },
+   {
+    "path": "docs/config.rst",
+    "why": "matches \"config\", \"load\", \"application\", \"configuration\" in Configuration Handling (L1); path matches \"config\"; the task asks for documentation",
+    "tokens": 2398
+   },
+   {
+    "path": "docs/tutorial/deploy.rst",
+    "why": "matches \"command\", \"config\", \"print\", \"configuration\" in Configure the Secret Key (L51); the task asks for documentation",
+    "tokens": 998
+   },
+   {
+    "path": "docs/quickstart.rst",
+    "why": "matches \"command\", \"print\", \"key\", \"secret\" in Sessions (L768); the task asks for documentation",
+    "tokens": 2561
+   },
+   {
+    "path": "tests/test_basic.py",
+    "why": "matches \"config\", \"load\", \"json\", \"key\" in get_session (L401); the task asks for a test",
+    "tokens": 555
+   },
+   {
+    "path": "src/flask/config.py",
+    "why": "matches \"config\", \"load\", \"application\", \"configuration\" in Config (L50); path matches \"config\"; source the change will likely edit",
+    "tokens": 160
+   }
+  ],
+  "omitted": 143,
+  "omittedSample": [
+   "docs/lifecycle.rst",
+   "tests/test_config.py",
+   "src/flask/sansio/app.py",
+   "docs/api.rst"
+  ]
+ }
+}

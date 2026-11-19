@@ -11,3 +11,5 @@ out-test/
 evidence/runs/
 *.vsix
 docs/writeup.html
+design/refs/
+design/harness/out/
