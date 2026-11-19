@@ -9,7 +9,7 @@ REPO="$PWD"
 OUT="$(cd "${1:?usage: record-demo.sh <out-dir>}" && pwd)"
 WORK="$OUT/work"
 rm -rf "$WORK"; mkdir -p "$WORK"
-FLASK_MIRROR="${FLASK_MIRROR:-$REPO/.ref/flask}" scripts/prepare-flask.sh "$WORK/flask" >/dev/null
+FLASK_MIRROR="${FLASK_MIRROR:-$REPO/.ref/flask}" scripts/prepare-flask.sh "$WORK/flask-3.1.3" >/dev/null
 mkdir -p "$WORK/app"
 cat > "$WORK/app/app.py" <<'PY'
 from flask import Flask
@@ -17,14 +17,37 @@ from flask import Flask
 app = Flask(__name__)
 app.config.update(SECRET_KEY="dev-secret", DATABASE_PASSWORD="hunter2", API_TOKEN="abc123", STRIPE_KEY="sk_test_1", GREETING="hello")
 PY
-git -C "$WORK/flask" config user.email demo@example.invalid
-git -C "$WORK/flask" config user.name demo
+git -C "$WORK/flask-3.1.3" config user.email demo@example.invalid
+git -C "$WORK/flask-3.1.3" config user.name demo
 node --env-file-if-exists=.env.local out/setup.js --restore anthropic >/dev/null
 
-scripts/demo-vscode.sh "$WORK/flask" >/dev/null
-D="$REPO/.vscode-test/drv"
-sleep 4
-WINREC_TITLE="flask" tools/winrec 0 "$OUT/raw.mov" 30 2> "$OUT/winrec.log" &
+# Isolated rig: the committed HEAD as a .vsix in its own VS Code profile, so the recording never
+# picks up uncommitted work or touches another VS Code window.
+SRC="$OUT/src"; rm -rf "$SRC"
+git worktree remove --force "$SRC" 2>/dev/null || true
+git worktree add -q --detach "$SRC" HEAD
+ln -s "$REPO/node_modules" "$SRC/node_modules"
+cp countersign.models.json "$SRC/" 2>/dev/null || true
+(cd "$SRC" && node scripts/build.mjs && npx vsce package --no-dependencies --allow-missing-repository -o "$OUT/countersign.vsix" >/dev/null)
+U="$OUT/u"; X="$OUT/x"; D="$OUT/drv"
+rm -rf "$U" "$X" "$D"; mkdir -p "$U/User" "$D"
+python3 - "$U/User/settings.json" "$D" <<'PY'
+import json, sys
+json.dump({"workbench.startupEditor": "none", "security.workspace.trust.enabled": False, "window.zoomLevel": 1,
+  "update.mode": "none", "telemetry.telemetryLevel": "off", "chat.disableAIFeatures": True,
+  "workbench.secondarySideBar.defaultVisibility": "hidden", "window.restoreWindows": "none",
+  "terminal.integrated.fontSize": 14, "editor.fontSize": 14, "workbench.tips.enabled": False,
+  "editor.minimap.enabled": False, "countersign.driverDir": sys.argv[2]}, open(sys.argv[1], "w"), indent=1)
+PY
+APP="$(ls -d "$REPO"/.vscode-test/vscode-darwin-*/Visual\ Studio\ Code.app | tail -1)"
+CODE="$APP/Contents/MacOS/Code"
+"$CODE" --user-data-dir="$U" --extensions-dir="$X" --install-extension "$OUT/countersign.vsix" >/dev/null 2>&1
+FL="$WORK/flask-3.1.3"
+"$CODE" --user-data-dir="$U" --extensions-dir="$X" --disable-workspace-trust "$FL" >/dev/null 2>&1 &
+for i in $(seq 1 60); do [ -f "$D/log.txt" ] && break; echo '{"do":"wait","ms":1}' >> "$D/steps.jsonl"; sleep 1; done
+[ -f "$D/log.txt" ] || { echo "driver did not start"; exit 1; }
+sleep 3
+WINREC_TITLE="flask-3.1.3" tools/winrec 0 "$OUT/raw.mov" 30 2> "$OUT/winrec.log" &
 REC=$!
 sleep 1
 T0=$(python3 -c 'import time;print(time.time())')
@@ -60,7 +83,7 @@ say '{"do":"command","id":"workbench.action.closeAllEditors"}' "{\"do\":\"agent\
     '{"do":"waitFor","what":"review","timeoutMs":400000}' '{"do":"wait","ms":5000}' \
     '{"do":"command","id":"countersign.acceptAll"}' '{"do":"allowCommand","timeoutMs":400000}' '{"do":"waitFor","what":"idle","timeoutMs":400000}' '{"do":"wait","ms":2500}' \
     "{\"do\":\"terminal\",\"text\":$(j "clear && python -m pytest tests/test_cli.py -q 2>&1 | tail -2 && git diff --stat")}" '{"do":"wait","ms":5000}' \
-    "{\"do\":\"terminal\",\"text\":$(j "clear && cd ../app && flask --app app config | head -14 && flask --help | grep -A5 Commands; cd ../flask")}" '{"do":"wait","ms":6000}' \
+    "{\"do\":\"terminal\",\"text\":$(j "clear && cd ../app && flask --app app config | head -14 && flask --help | grep -A5 Commands; cd ../flask-3.1.3")}" '{"do":"wait","ms":6000}' \
     '{"do":"command","id":"countersign.openSession"}' '{"do":"wait","ms":9000}'
 wait_log; mark "task C"
 say '{"do":"command","id":"workbench.action.closeAllEditors"}' \
@@ -77,4 +100,6 @@ say "{\"do\":\"agent\",\"text\":$(j "Explain how flask finds the app when you ru
 wait_log; mark end
 kill -INT $REC; wait $REC || true
 node --env-file-if-exists=.env.local out/setup.js --restore anthropic >/dev/null
+pkill -f "user-data-dir=$U" 2>/dev/null || true
+git worktree remove --force "$SRC" 2>/dev/null || true
 echo "recorded $OUT/raw.mov; marks in $OUT/marks.txt; driver log $D/log.txt"
