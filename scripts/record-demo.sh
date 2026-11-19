@@ -78,7 +78,7 @@ j() { python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$1"; }
 
 : > "$OUT/marks.txt"
 mark start
-say '{"do":"focusPanel"}' '{"do":"terminal","text":"source .venv/bin/activate && clear && git log -1 --oneline && git status --short"}' '{"do":"wait","ms":2500}'
+say '{"do":"focusPanel"}' '{"do":"command","id":"workbench.action.increaseViewWidth"}' '{"do":"command","id":"workbench.action.increaseViewWidth"}' '{"do":"command","id":"workbench.action.increaseViewWidth"}' '{"do":"command","id":"workbench.action.increaseViewWidth"}' '{"do":"command","id":"workbench.action.increaseViewWidth"}' '{"do":"focusPanel"}' '{"do":"terminal","text":"source .venv/bin/activate && clear && git log -1 --oneline && git status --short"}' '{"do":"wait","ms":2500}'
 wait_log; mark "task A"
 say '{"do":"select","path":"src/flask/helpers.py","symbol":"get_debug_flag"}' '{"do":"wait","ms":1200}' \
     "{\"do\":\"inline\",\"text\":$(j "$TASK_A"),\"cps\":38}" '{"do":"waitFor","what":"review","timeoutMs":180000}' '{"do":"wait","ms":2500}' \
