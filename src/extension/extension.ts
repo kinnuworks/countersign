@@ -139,6 +139,17 @@ async function ensure(ctx: vscode.ExtensionContext): Promise<Countersign> {
       throw new Error(`TrueForge is not reachable at ${url}`);
     }
     await instance.start();
+    // Keep the index in step with changes made outside Countersign (git checkout, other editors).
+    const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(folder, '**/*'));
+    const reindex = async (uri: vscode.Uri) => {
+      const rel = vscode.workspace.asRelativePath(uri, false);
+      if (/(^|\/)(\.git|node_modules|\.venv|__pycache__)\//.test(rel)) return;
+      instance.retriever.update(rel, await instance.ws.readFile(rel));
+    };
+    watcher.onDidChange(reindex);
+    watcher.onDidCreate(reindex);
+    watcher.onDidDelete(uri => instance.retriever.update(vscode.workspace.asRelativePath(uri, false), null));
+    ctx.subscriptions.push(watcher);
     const available = new Set((await instance.forge.models()).map(m => m.name));
     const missing = chain.filter(m => !available.has(m));
     panel.post({ type: 'config', chain, connected: true, url, note: missing.length ? `Not configured in TrueForge: ${missing.join(', ')}` : undefined });
