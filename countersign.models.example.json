@@ -5,7 +5,7 @@
   },
   "chain": [
     "anthropic/claude-sonnet-5-5",
-    "ollama/gemma4-e4b"
+    "anthropic-openai/claude-haiku-5-5"
   ],
   "retry": {
     "retries": 2,
@@ -35,6 +35,25 @@
         ]
       },
       "apiKeyEnv": "ANTHROPIC_API_KEY"
+    },
+    {
+      "manifest": {
+        "type": "custom",
+        "name": "anthropic-openai",
+        "base_url": "https://api.anthropic.com/v1/",
+        "models": [
+          {
+            "model_id": "claude-haiku-5-5",
+            "name": "claude-haiku-5-5",
+            "properties": {
+              "context_length": 200000,
+              "max_output_tokens": 16000
+            }
+          }
+        ]
+      },
+      "apiKeyEnv": "ANTHROPIC_API_KEY",
+      "_note": "Anthropic's OpenAI-compatible endpoint, a second provider so the fallback survives a broken anthropic provider"
     },
     {
       "manifest": {

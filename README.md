@@ -1,10 +1,12 @@
 # Countersign
 
-A coding agent for VS Code whose agent loop runs on [TrueForge](https://github.com/truefoundry/trueforge). It shows which files it picked and why, and nothing reaches disk until you accept it, hunk by hunk.
+A coding agent for VS Code. You ask for a change; it finds the files itself and tells you why it picked each one; then every edit waits for you to accept or reject it, hunk by hunk. Nothing is written until you do.
 
-**Why it needs TrueForge:** the loop, streaming, sessions, subagents and tool approvals are TrueForge's. Countersign gives the agent the editor as MCP tools, and every write the agent proposes is a TrueForge tool approval that opens as a per-hunk review in your editor. The approved tool call writes only the hunks you accepted.
+**Why it needs TrueForge:** Countersign has no agent loop of its own. It runs on [TrueForge](https://github.com/truefoundry/trueforge), TrueFoundry's open-source agent harness, which you start locally with one `npx` command. TrueForge runs the model, the tool loop and the subagents; Countersign hands it the editor as tools, and each edit the agent wants to make reaches you as a TrueForge approval that opens as a review in the editor.
 
 <!-- demo GIF goes here once recorded -->
+
+It was built for the TrueFoundry Forge-a-thon, whose three fixed tasks on pallets/flask are described [below](#the-three-fixed-tasks-palletsflask-313).
 
 ## Try it
 

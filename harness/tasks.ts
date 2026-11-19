@@ -120,6 +120,7 @@ async function main() {
     status: result.status,
     model: result.model,
     attempts: result.attempts,
+    usage: result.usage,
     error: result.error,
     ms,
     deltas,

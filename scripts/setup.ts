@@ -21,11 +21,21 @@ async function main() {
     process.exit(1);
   }
   const argv = process.argv.slice(2);
-  if (argv.includes('--broken-endpoint')) {
+  if (argv.includes('--broken-endpoint') || (argv.includes('--break-endpoint') && !argv[argv.indexOf('--break-endpoint') + 1])) {
     const body = JSON.stringify({ manifest: { type: 'custom', name: 'broken-endpoint', base_url: 'http://127.0.0.1:9/v1', auth: { api_key: 'not-a-real-key' }, models: [{ model_id: 'unreachable', name: 'unreachable', properties: { context_length: 128000, max_output_tokens: 4096 } }] } });
     let r = await fetch(`${base}/api/v1/settings/model-providers`, { method: 'POST', headers: { 'content-type': 'application/json' }, body });
     if (r.status === 409) r = await fetch(`${base}/api/v1/settings/model-providers`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body });
     console.log(r.ok ? 'ok broken-endpoint/unreachable (points at 127.0.0.1:9, nothing listens there)' : `FAILED ${r.status} ${await r.text()}`);
+    return;
+  }
+  const brkEp = argv.indexOf('--break-endpoint');
+  if (brkEp >= 0 && argv[brkEp + 1] && !argv[brkEp + 1].startsWith('--')) {
+    // Task C, literally: TrueForge's own provider config points at an address nothing listens on.
+    const target = argv[brkEp + 1];
+    const p = cfg.providers.find(x => (x.manifest.name ?? x.manifest.type) === target);
+    if (!p) throw new Error(`no provider ${target} in countersign.models.json`);
+    await provisionProviders(base, { ...cfg, providers: [{ ...p, manifest: { ...p.manifest, base_url: 'http://127.0.0.1:9/v1' } }] }, process.env, console.log);
+    console.log(`${target} in TrueForge now points at http://127.0.0.1:9/v1 (nothing listens there). Undo: npm run setup -- --restore ${target}`);
     return;
   }
   const breakIdx = argv.indexOf('--break-key');

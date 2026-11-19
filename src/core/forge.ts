@@ -41,7 +41,15 @@ export interface RunObserver {
   onApprovals(calls: ToolCallInfo[], signal: AbortSignal): Promise<ApprovalAnswer[]>;
 }
 
+export interface Usage {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+}
+
 export interface RunResult {
+  usage?: Usage;
   status: 'done' | 'cancelled' | 'error';
   output: string;
   model?: string;
@@ -162,8 +170,9 @@ export class Forge {
     const items = ((list.json?.data as { items?: unknown[] } | unknown[] | undefined) ?? []) as unknown;
     const arr = (Array.isArray(items) ? items : ((items as { items?: unknown[] }).items ?? [])) as { id: string; name: string }[];
     const existing = arr.find(a => a.name === def.name);
-    const body = { name: def.name, description: def.description, manifest: def.spec };
-    const r = existing ? await this.api('PUT', `/api/v1/agents/${existing.id}`, body) : await this.api('POST', '/api/v1/agents', body);
+    const r = existing
+      ? await this.api('PUT', `/api/v1/agents/${existing.id}`, { description: def.description, manifest: def.spec })
+      : await this.api('POST', '/api/v1/agents', { name: def.name, description: def.description, manifest: def.spec });
     if (r.status >= 300) throw new Error(`Could not save agent ${def.name}: ${r.json?.error?.message ?? r.text}`);
   }
 
@@ -247,6 +256,7 @@ export class Forge {
     let turnId: string | undefined;
     let lastEventId: string | undefined;
     let pending: { id: string; sourceEventId: string; threadId: string }[] = [];
+    let usage: Usage | undefined;
 
     const callFromMessage = (msgId: string, callId: string, threadId: string): ToolCallInfo | undefined => {
       const msg = events.get(msgId) as { toolCalls?: { id: string; function?: { name?: string; arguments?: string }; toolInfo?: { name?: string; serverName?: string } }[] } | undefined;
@@ -318,8 +328,10 @@ export class Forge {
             break;
           }
           case 'turn.done': {
-            const st = ev.state as { status: string; output?: { content?: string }; message?: string };
-            if (st.status === 'done') return { paused: false, done: { status: 'done', output: st.output?.content ?? '', sessionId: sid, model: opts.model, wrote } };
+            const st = ev.state as { status: string; output?: { content?: string }; message?: string; metrics?: Record<string, number> };
+            const mt = st.metrics;
+            if (mt) usage = { input: mt.totalInputTokens ?? 0, output: mt.totalOutputTokens ?? 0, cacheRead: mt.totalCacheReadTokens ?? 0, cacheWrite: mt.totalCacheWriteTokens ?? 0 };
+            if (st.status === 'done') return { paused: false, done: { status: 'done', output: st.output?.content ?? '', sessionId: sid, model: opts.model, wrote, usage } };
             if (st.status === 'cancelled') return { paused: false, done: { status: 'cancelled', output: '', sessionId: sid, model: opts.model, wrote } };
             return { paused: false, done: { status: 'error', output: '', error: st.message ?? 'turn failed', sessionId: sid, model: opts.model, wrote } };
           }

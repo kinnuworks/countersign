@@ -5,6 +5,21 @@ export interface SearchReplace {
   new_text: string;
 }
 
+/** Models differ: some send edits as an array, some as a JSON string, some as one object. */
+export function normalizeEdits(raw: unknown): SearchReplace[] {
+  let v = raw;
+  if (typeof v === 'string') {
+    try {
+      v = JSON.parse(v);
+    } catch {
+      return [];
+    }
+  }
+  if (v && !Array.isArray(v) && typeof v === 'object') v = [v];
+  if (!Array.isArray(v)) return [];
+  return v.filter((e): e is SearchReplace => !!e && typeof e.old_text === 'string' && typeof e.new_text === 'string').map(e => ({ old_text: e.old_text, new_text: e.new_text }));
+}
+
 export interface EditResult {
   ok: boolean;
   text: string;

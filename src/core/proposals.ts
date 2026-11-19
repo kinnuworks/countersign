@@ -1,4 +1,4 @@
-import { applyHunks, applySearchReplace, buildProposal, summarizeHunk, type FileProposal, type SearchReplace } from './edits';
+import { applyHunks, applySearchReplace, buildProposal, normalizeEdits, summarizeHunk, type FileProposal } from './edits';
 import type { ToolCallInfo } from './forge';
 import { ApprovalBook, type Decision } from './tools';
 import { safeRel, type Workspace } from './workspace';
@@ -27,7 +27,7 @@ export async function proposalFromCall(ws: Workspace, call: ToolCallInfo): Promi
     return { ok: true, p: { call, explanation, file: buildProposal(rel, null, content) } };
   }
   if (current == null) return { ok: false, reason: `${rel} does not exist; use create_file for new files, or check the path with list_files.` };
-  const edits = Array.isArray(a.edits) ? (a.edits as SearchReplace[]).filter(e => e && typeof e.old_text === 'string' && typeof e.new_text === 'string') : [];
+  const edits = normalizeEdits(a.edits);
   if (!edits.length) return { ok: false, reason: 'propose_edit needs at least one {old_text, new_text} block.' };
   const r = applySearchReplace(current, edits);
   if (!r.ok) return { ok: false, reason: `Could not place the edit in ${rel}: ${r.errors.join(' ')}` };
