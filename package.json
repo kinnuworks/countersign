@@ -1,0 +1,138 @@
+{
+  "name": "countersign",
+  "private": true,
+  "version": "0.1.0",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@truefoundry/trueforge-sdk": "^0.185.0",
+    "diff": "^9.0.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/diff": "^7.0.2",
+    "@types/node": "^26.6.6",
+    "@types/vscode": "^1.146.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  },
+  "displayName": "Countersign",
+  "description": "A coding agent for VS Code that runs on TrueForge, shows why it picked each file, and never writes without your sign-off on every hunk.",
+  "publisher": "countersign",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "AI",
+    "Programming Languages"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "countersign",
+          "title": "Countersign",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "countersign": [
+        {
+          "type": "webview",
+          "id": "countersign.agent",
+          "name": "Agent"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "countersign.inlineEdit",
+        "title": "Countersign: Inline Edit Selection"
+      },
+      {
+        "command": "countersign.cancel",
+        "title": "Countersign: Stop"
+      },
+      {
+        "command": "countersign.undo",
+        "title": "Countersign: Undo Last Applied Change"
+      },
+      {
+        "command": "countersign.acceptAll",
+        "title": "Countersign: Accept All Hunks"
+      },
+      {
+        "command": "countersign.rejectAll",
+        "title": "Countersign: Reject All Hunks"
+      },
+      {
+        "command": "countersign.openSession",
+        "title": "Countersign: Open TrueForge Session"
+      },
+      {
+        "command": "countersign.reconnect",
+        "title": "Countersign: Reconnect to TrueForge"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "countersign.inlineEdit",
+        "key": "ctrl+alt+k",
+        "mac": "cmd+alt+k",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "countersign.cancel",
+        "key": "escape",
+        "when": "countersign.running"
+      },
+      {
+        "command": "countersign.acceptAll",
+        "key": "ctrl+alt+enter",
+        "mac": "cmd+alt+enter",
+        "when": "countersign.running"
+      }
+    ],
+    "configuration": {
+      "title": "Countersign",
+      "properties": {
+        "countersign.trueforgeUrl": {
+          "type": "string",
+          "default": "",
+          "description": "TrueForge server URL. Empty uses countersign.models.json (default http://localhost:8790)."
+        },
+        "countersign.models": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Model chain as TrueForge model names (provider/model). The first runs; each next one takes over automatically when the previous fails. Empty uses countersign.models.json."
+        },
+        "countersign.retries": {
+          "type": "number",
+          "default": 2,
+          "description": "Retries with exponential backoff on the same model for network, rate-limit and server errors, before falling back."
+        },
+        "countersign.contextBudget": {
+          "type": "number",
+          "default": 10000,
+          "description": "Token budget for the automatically retrieved context sent with each agent request."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:unit": "node scripts/build.mjs && node --test out-test/",
+    "setup": "node scripts/build.mjs && node --env-file-if-exists=.env.local out/setup.js",
+    "task": "node out/harness.js",
+    "package": "vsce package --no-dependencies"
+  }
+}

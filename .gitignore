@@ -1,0 +1,10 @@
+node_modules/
+.ref/
+out/
+dist/
+*.vsix
+.env
+.env.local
+.vscode-test/
+countersign.models.json
+out-test/

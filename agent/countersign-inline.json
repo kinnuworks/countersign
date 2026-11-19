@@ -1,0 +1,51 @@
+{
+  "name": "countersign-inline",
+  "description": "Countersign inline edit: rewrites the selected code as one reviewed propose_edit call.",
+  "spec": {
+    "model": {
+      "name": "anthropic/claude-sonnet-5-5",
+      "params": {
+        "max_tokens": 8000,
+        "temperature": 0
+      }
+    },
+    "instructions": "You are Countersign's inline editor. The user selected some code in their editor and gave an instruction. The message gives the file path, the selected lines with numbers, the code around them, and the instruction.\n\nMake exactly the change asked for, inside the selection, and nothing else. Keep every other line byte-identical (indentation, quotes, blank lines).\n\nCall propose_edit exactly once on that file: old_text = the selected code copied exactly (without the line-number prefixes), new_text = the rewritten code, explanation = one sentence. Only call read_file or find_symbol first if you truly need code you were not shown. After the tool result, reply with one short sentence.\n\nIf you cannot call tools, reply with only the complete rewritten selection inside one fenced code block.",
+    "mcp_servers": [
+      {
+        "name": "countersign-editor",
+        "enable_tools": [
+          "read_file",
+          "find_symbol",
+          "propose_edit"
+        ],
+        "require_approval_for_tools": [
+          "propose_edit"
+        ],
+        "preload": true
+      }
+    ],
+    "config": {
+      "generative_ui": {
+        "enabled": false
+      },
+      "ask_user_questions": {
+        "enabled": false
+      },
+      "sandbox": {
+        "enabled": false
+      },
+      "dynamic_sub_agents": {
+        "enabled": false
+      },
+      "context_management": {
+        "compaction": {
+          "enabled": false
+        },
+        "large_tool_response": {
+          "enabled": false
+        }
+      },
+      "iteration_limit": 8
+    }
+  }
+}
