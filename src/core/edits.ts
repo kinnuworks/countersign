@@ -77,12 +77,15 @@ function fuzzyFind(text: string, oldText: string): { start: number; end: number 
   if (hits.length > 1) return 'ambiguous';
   const first = hits[0];
   const last = first + want.length - 1;
-  return { start: offsets[first], end: offsets[last] + lines[last].length };
+  return { start: offsets[first], end: offsets[last] + lines[last].replace(/\r$/, '').length };
 }
 
 /** Applies search/replace blocks in order. Every block must match exactly one place. */
-export function applySearchReplace(original: string, edits: SearchReplace[]): EditResult {
+export function applySearchReplace(original: string, rawEdits: SearchReplace[]): EditResult {
   let text = original;
+  // Keep the file's line endings: models write \n, a CRLF file must stay CRLF.
+  const crlf = original.includes('\r\n');
+  const edits = crlf ? rawEdits.map(e => ({ old_text: e.old_text, new_text: e.new_text.replace(/\r?\n/g, '\r\n') })) : rawEdits;
   const errors: string[] = [];
   edits.forEach((e, idx) => {
     const label = `edit ${idx + 1}`;
@@ -90,9 +93,10 @@ export function applySearchReplace(original: string, edits: SearchReplace[]): Ed
       errors.push(`${label}: old_text is empty; use create_file for new files or include the lines you are replacing`);
       return;
     }
-    const exact = countOccurrences(text, e.old_text);
+    const oldText = crlf && !e.old_text.includes('\r\n') ? e.old_text.replace(/\n/g, '\r\n') : e.old_text;
+    const exact = countOccurrences(text, oldText);
     if (exact === 1) {
-      text = text.replace(e.old_text, () => e.new_text);
+      text = text.replace(oldText, () => e.new_text);
       return;
     }
     if (exact > 1) {
@@ -112,12 +116,13 @@ export function applySearchReplace(original: string, edits: SearchReplace[]): Ed
     const matched = text.slice(f.start, f.end);
     const indentHave = /^[ \t]*/.exec(matched)?.[0] ?? '';
     const indentGot = /^[ \t]*/.exec(e.old_text)?.[0] ?? '';
-    let replacement = e.new_text.replace(/\n+$/, '');
+    const nl = crlf ? '\r\n' : '\n';
+    let replacement = e.new_text.replace(/(\r?\n)+$/, '');
     if (indentHave !== indentGot && indentGot === '') {
       replacement = replacement
-        .split('\n')
+        .split(/\r?\n/)
         .map(l => (l.length ? indentHave + l : l))
-        .join('\n');
+        .join(nl);
     }
     text = text.slice(0, f.start) + replacement + text.slice(f.end);
   });
@@ -151,12 +156,15 @@ export function applyHunks(original: string, hunks: Hunk[], accepted: Set<string
   const lines = original === '' ? [] : original.split(/\r?\n/);
   const chosen = hunks.filter(h => accepted.has(h.id)).sort((a, b) => b.oldStart - a.oldStart);
   for (const h of chosen) {
-    const replacement = h.lines.filter(l => !l.startsWith('-')).map(l => l.slice(1));
+    // jsdiff keeps a trailing \r on lines of CRLF files; strip it, since lines are rejoined with eol.
+    const replacement = h.lines.filter(l => !l.startsWith('-')).map(l => l.slice(1).replace(/\r$/, ''));
     // jsdiff numbers a pure insertion by the old line it goes before, so every hunk starts at oldStart - 1.
     const start = Math.max(0, h.oldStart - 1);
     lines.splice(start, h.oldLines, ...replacement);
   }
-  return lines.join(eol);
+  const out = lines.join(eol);
+  // A new file's hunk does not carry the final newline; files end with one.
+  return original === '' && out !== '' ? out + eol : out;
 }
 
 export interface FileProposal {

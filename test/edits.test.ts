@@ -36,7 +36,7 @@ test('far-apart edits become separate hunks, and any subset applies cleanly', ()
 
 test('a new file is one hunk that recreates the content', () => {
   const hunks = computeHunks('n.py', '', 'a\nb\n');
-  assert.equal(applyHunks('', hunks, new Set(hunks.map(h => h.id))).replace(/\n$/, ''), 'a\nb');
+  assert.equal(applyHunks('', hunks, new Set(hunks.map(h => h.id))), 'a\nb\n');
 });
 
 test('a docstring edit and a code edit two lines apart are separate hunks', () => {
@@ -47,4 +47,21 @@ test('a docstring edit and a code edit two lines apart are separate hunks', () =
   assert.equal(applyHunks(orig, hunks, new Set([hunks[0].id])), ['def f():', '    """Doc.', '    More doc.', '    """', '    v = 1', '    return v in {0}', ''].join('\n'));
   assert.equal(applyHunks(orig, hunks, new Set([hunks[1].id])), ['def f():', '    """Doc.', '    """', '    v = 1', '    return v in {0, 1}', ''].join('\n'));
   assert.equal(applyHunks(orig, hunks, new Set(hunks.map(h => h.id))), prop);
+});
+
+test('CRLF files stay CRLF through search/replace and partial acceptance', () => {
+  const orig = ['one', 'two', 'three', 'four', 'five', 'six', ''].join('\r\n');
+  const r = applySearchReplace(orig, [{ old_text: 'one', new_text: 'ONE' }, { old_text: 'six', new_text: 'SIX' }]);
+  assert.equal(r.ok, true);
+  const hunks = computeHunks('w.txt', orig, r.text);
+  assert.equal(hunks.length, 2);
+  assert.equal(applyHunks(orig, hunks, new Set([hunks[0].id])), ['ONE', 'two', 'three', 'four', 'five', 'six', ''].join('\r\n'));
+  const multi = applySearchReplace(orig, [{ old_text: 'two\nthree', new_text: 'TWO\nTHREE' }]);
+  assert.equal(multi.ok, true);
+  assert.ok(!/[^\r]\n/.test(multi.text), 'no bare LF in a CRLF file');
+});
+
+test('a new file keeps its final newline', () => {
+  const hunks = computeHunks('n.py', '', 'x\ny\n');
+  assert.equal(applyHunks('', hunks, new Set(hunks.map(h => h.id))), 'x\ny\n');
 });

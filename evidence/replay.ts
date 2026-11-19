@@ -134,6 +134,12 @@ async function bm25WholeFiles(ws: TreeWorkspace, query: string) {
 
 async function main() {
   const repo = path.resolve(process.argv[2] ?? '.ref/flask');
+  try {
+    execFileSync('git', ['-C', repo, 'rev-parse', '--verify', '3.1.3^{commit}'], { stdio: 'ignore' });
+  } catch {
+    console.error(`replay: ${repo} is not a pallets/flask clone with tag 3.1.3 (git clone https://github.com/pallets/flask ${repo})`);
+    process.exit(2);
+  }
   const outIdx = process.argv.indexOf('--out');
   const out = outIdx > 0 ? process.argv[outIdx + 1] : 'evidence/results/replay.csv';
   const log = execFileSync('git', ['log', '--no-merges', '--format=%H%x1f%P%x1f%cI%x1f%s%x1f%b%x1e', '3.1.3'], { cwd: repo, maxBuffer: 200_000_000 }).toString();
