@@ -5,27 +5,29 @@ This plan is written and committed before any evaluation run. The commit hash an
 There are no real users in this evaluation. Nobody was recruited, messaged or contacted for it, and our own traffic counts as testing, never as usage.
 
 ## Question
-<The one question the evaluation answers, in a sentence. If the project makes no measurable claim, write "n/a: <reason>" here and leave the rest of the plan as it is.>
+When a real change to pallets/flask is described in words, does Countersign's retriever put every file that change edited into its 10,000-token context pack more often than the BM25 whole-file retrieval baseline at the same budget?
 
 ## Metric and threshold
-- Metric: <what is measured, and how it is computed>
-- Threshold: <the value that counts as success>
+- Metric (primary): share of commits where every target file is in the context pack ("all found"). Target files = files the commit modified that existed at its parent, are text, and are not CHANGES.rst (changelog lines are bookkeeping, not code to find). Pack = what each method fits into 10,000 estimated tokens (characters / 3.6).
+- Metric (secondary): mean per-commit recall of target files in each method's top 5 ranked files (no budget).
+- Threshold: on the test slice, ours minus baseline on the primary metric is above 0, with the low end of the paired bootstrap 95% interval above 0.
 - Interval: 95%, from `python3 evidence/interval.py` (Wilson for k of n, bootstrap for a mean or a difference)
 
 ## Data
-- Dataset: <name, link and licence>
-- Version or hash: <release, date, or the SHA-256 of the file the rerun downloads>
-- Split: <by time where possible: the building slice and the test slice, with their dates. The test slice is never opened while building.>
+- Dataset: git history of pallets/flask, https://github.com/pallets/flask, BSD-3-Clause.
+- Version or hash: commits reachable from tag 3.1.3 (22d92470). Each commit is evaluated on the repository as it was at its parent, read from git objects.
+- Selection (fixed now): non-merge commits; 2 to 8 target files; commit subject at least 20 characters; subject not starting with "Merge", "Bump", "Release", "release version", "[pre-commit", "update requirements", "Update requirements". Query = commit subject plus body, cut at 600 characters.
+- Split: building slice = commits dated before 2023-01-01 (not used for tuning; the retriever was tuned only on the Task B instruction of this hackathon, written before this plan). Test slice = commits dated 2023-01-01 to 2026-02-18 (3.1.3).
 
 ## Baseline
-- Whose: <a baseline someone else published, with a link, and its score on this split if they report one>
+- Whose: BM25 sparse retrieval over whole files, filled in rank order up to the token budget, the retrieval baseline of SWE-bench (Jimenez et al., "SWE-bench: Can Language Models Resolve Real-World GitHub Issues?", ICLR 2024, https://arxiv.org/abs/2310.06770). They report it on SWE-bench, not on this split; we run it ourselves on the same commits and tokenizer.
 
 ## Success rule
-<The exact rule, decided now. For example: "the metric beats the baseline on the test slice, and the low end of its 95% interval is above the baseline's score.">
+On the test slice, the paired difference (ours minus baseline) in "all found" has a 95% bootstrap interval whose low end is above 0. Anything else is reported as not supported, with the numbers.
 
 ## Models and seeds
-- Models: <"none", or "an AI model". The exact model name and version appear only where a submission form asks which AI tools were used.>
-- Seeds: <every random seed the rerun uses>
+- Models: none (retrieval only; no model call).
+- Seeds: bootstrap seed 7 (evidence/interval.py default), 10,000 draws.
 
 ## How results are reported
 Every result names its kind at first mention, gives n, the source, the period and a 95% interval, and links its rerun command and commit. Measured numbers and estimates are kept apart, and failures are shown next to successes.
