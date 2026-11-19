@@ -1,0 +1,8 @@
+**
+!out/extension.js
+!agent/**
+!media/**
+!countersign.models.example.json
+!package.json
+!README.md
+!LICENSE

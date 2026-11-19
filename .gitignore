@@ -9,3 +9,4 @@ dist/
 countersign.models.json
 out-test/
 evidence/runs/
+*.vsix

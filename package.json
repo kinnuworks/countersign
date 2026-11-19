@@ -11,7 +11,7 @@
   "devDependencies": {
     "@types/diff": "^7.0.2",
     "@types/node": "^26.6.6",
-    "@types/vscode": "^1.146.0",
+    "@types/vscode": "^1.95.0",
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^4.1.1",
     "esbuild": "^0.28.2",
@@ -143,6 +143,10 @@
     "test:unit": "node scripts/build.mjs && node --test out-test/",
     "setup": "node scripts/build.mjs && node --env-file-if-exists=.env.local out/setup.js",
     "task": "node out/harness.js",
-    "package": "vsce package --no-dependencies"
+    "package": "node scripts/build.mjs && vsce package --no-dependencies --allow-missing-repository"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kinnuworks/countersign"
   }
 }
