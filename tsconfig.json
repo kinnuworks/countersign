@@ -10,5 +10,5 @@
     "noEmit": true,
     "types": ["node", "vscode"]
   },
-  "include": ["src", "test", "harness", "evidence/*.ts"]
+  "include": ["src", "test", "harness", "e2e", "scripts/*.ts", "evidence/*.ts"]
 }

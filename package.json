@@ -106,7 +106,8 @@
         "countersign.trueforgeUrl": {
           "type": "string",
           "default": "",
-          "description": "TrueForge server URL. Empty uses countersign.models.json (default http://localhost:8790)."
+          "description": "TrueForge server URL. Empty uses countersign.models.json (default http://localhost:8790).",
+          "scope": "machine"
         },
         "countersign.models": {
           "type": "array",
@@ -129,7 +130,8 @@
         "countersign.driverDir": {
           "type": "string",
           "default": "",
-          "description": "Recording and testing only: a folder whose steps.jsonl the demo driver plays. Leave empty."
+          "description": "Recording and testing only: a folder whose steps.jsonl the demo driver plays. Leave empty.",
+          "scope": "machine"
         }
       }
     },
@@ -148,5 +150,12 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/kinnuworks/countersign"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Countersign reads the repository, sends it to your model through TrueForge and runs approved commands, so it only runs in trusted workspaces."
+    },
+    "virtualWorkspaces": false
   }
 }

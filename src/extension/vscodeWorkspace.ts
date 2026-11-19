@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { listWorkspaceFiles, safeRel, type Workspace } from '../core/workspace';
+import { assertInside, listWorkspaceFiles, safeRel, type Workspace } from '../core/workspace';
 
 /**
  * The workspace as the editor sees it: reads include unsaved buffer text, and writes go through
@@ -17,7 +17,13 @@ export class VscodeWorkspace implements Workspace {
   }
 
   async readFile(rel: string): Promise<string | null> {
-    const uri = this.uri(rel);
+    let uri: vscode.Uri;
+    try {
+      uri = this.uri(rel);
+      await assertInside(this.root, safeRel(this.root, rel));
+    } catch {
+      return null;
+    }
     const open = vscode.workspace.textDocuments.find(d => d.uri.toString() === uri.toString());
     if (open) return open.getText();
     try {
@@ -30,6 +36,7 @@ export class VscodeWorkspace implements Workspace {
   }
 
   async writeFile(rel: string, text: string): Promise<void> {
+    await assertInside(this.root, safeRel(this.root, rel));
     const uri = this.uri(rel);
     const edit = new vscode.WorkspaceEdit();
     let exists = true;

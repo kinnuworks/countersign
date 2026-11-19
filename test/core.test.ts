@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import { ApprovalBook } from '../src/core/tools';
 import { classifyError } from '../src/core/forge';
 import { ChangeJournal } from '../src/core/journal';
-import type { Workspace } from '../src/core/workspace';
+import { NodeWorkspace, safeRel, type Workspace } from '../src/core/workspace';
+import { commandEnv } from '../src/core/tools';
+import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import * as path from 'node:path';
 
 class MemWs implements Workspace {
   root = '/mem';
@@ -51,4 +55,39 @@ test('undo restores exactly, and refuses when the file changed after the edit', 
   ws.files.set('a.py', 'new');
   assert.equal((await j.undo(ws)).ok, true);
   assert.equal(ws.files.get('a.py'), 'old');
+});
+
+test('paths: no escape, no git internals or secret env files, no symlink way out', async () => {
+  assert.throws(() => safeRel('/r', '../x'));
+  assert.throws(() => safeRel('/r', '.git/config'));
+  assert.throws(() => safeRel('/r', 'a/.env'));
+  assert.throws(() => safeRel('/r', '.env.production'));
+  assert.equal(safeRel('/r', '.env.example'), '.env.example');
+  assert.throws(() => safeRel('/r', 'a"b.py'));
+  const root = mkdtempSync(path.join(tmpdir(), 'cs-'));
+  const outside = mkdtempSync(path.join(tmpdir(), 'cs-out-'));
+  writeFileSync(path.join(outside, 'secret.txt'), 'nope');
+  symlinkSync(outside, path.join(root, 'link'));
+  mkdirSync(path.join(root, 'src'));
+  const ws = new NodeWorkspace(root);
+  assert.equal(await ws.readFile('link/secret.txt'), null);
+  await assert.rejects(ws.writeFile('link/new.txt', 'x'));
+  await ws.writeFile('src/ok.py', 'x = 1\n');
+  assert.equal(await ws.readFile('src/ok.py'), 'x = 1\n');
+});
+
+test('approved commands do not inherit API keys or tokens', () => {
+  process.env.ANTHROPIC_API_KEY = 'sk-test';
+  process.env.GITHUB_TOKEN = 't';
+  const env = commandEnv('/w/.venv/bin');
+  assert.equal(env.ANTHROPIC_API_KEY, undefined);
+  assert.equal(env.GITHUB_TOKEN, undefined);
+  assert.match(env.PATH ?? '', /^\/w\/\.venv\/bin:/);
+});
+
+test('edits sent as a JSON string match the same approval as an array', () => {
+  const b = new ApprovalBook();
+  const edits = [{ old_text: 'a', new_text: 'b' }];
+  b.record('propose_edit', { path: 'x.py', edits: JSON.stringify(edits), explanation: 'e' }, { kind: 'write', path: 'x.py', finalText: 'b', before: 'a', accepted: 1, total: 1, rejectedNotes: [] });
+  assert.equal(b.take('propose_edit', { path: 'x.py', edits, explanation: 'e' })?.kind, 'write');
 });

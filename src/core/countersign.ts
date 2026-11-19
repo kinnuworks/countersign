@@ -46,12 +46,10 @@ export class Countersign {
 
   async start(): Promise<void> {
     await this.retriever.build();
+    // Approved commands (and only those) use the project's own virtualenv when it has one.
     const venvBin = path.join(this.ws.root, '.venv', 'bin');
-    if (existsSync(venvBin) && !(process.env.PATH ?? '').split(path.delimiter).includes(venvBin)) {
-      // Commands the agent runs use the project's own virtualenv when it has one.
-      process.env.PATH = `${venvBin}${path.delimiter}${process.env.PATH ?? ''}`;
-    }
     this.tools = await startToolServer({
+      commandPathPrefix: existsSync(venvBin) ? venvBin : undefined,
       ws: this.ws,
       retriever: this.retriever,
       book: this.book,
@@ -76,6 +74,7 @@ export class Countersign {
 
   /** Agent mode: automatic retrieval first, then the coder agent with the context pack. */
   async runAgent(request: string, observer: RunObserver, signal: AbortSignal, opts: { pinned?: string[]; open?: string[]; budgetTokens?: number } = {}): Promise<RunResult & { pack: ContextPack }> {
+    this.book.clear();
     const pack = this.retriever.retrieve(request, { budgetTokens: opts.budgetTokens ?? 10_000, pinned: opts.pinned, open: opts.open });
     this.events.onContext?.(pack, 'auto');
     // The task goes first: TrueForge titles the session from the start of the first message.
@@ -86,6 +85,7 @@ export class Countersign {
 
   /** Inline edit: the selection plus its surroundings go to the inline agent, which proposes one reviewed edit. */
   async runInline(req: InlineRequest, observer: RunObserver, signal: AbortSignal): Promise<RunResult & { usedFallbackParse: boolean }> {
+    this.book.clear();
     const text = (await this.ws.readFile(req.path)) ?? '';
     const lines = text.split(/\r?\n/);
     const s = Math.max(1, req.startLine);

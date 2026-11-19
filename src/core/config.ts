@@ -34,8 +34,16 @@ export async function loadAgent(dir: string, name: 'countersign-coder' | 'counte
   return JSON.parse(await fs.readFile(path.join(dir, 'agent', `${name}.json`), 'utf8')) as AgentDefinition;
 }
 
+/** Keys are only ever sent to a TrueForge on this machine, or over https. */
+export function assertSafeBaseUrl(baseUrl: string) {
+  const u = new URL(baseUrl);
+  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname);
+  if (!loopback && u.protocol !== 'https:') throw new Error(`refusing to send keys to ${baseUrl}: use a local TrueForge or https`);
+}
+
 /** Creates or updates each model provider in TrueForge (keys go to TrueForge, never to disk here). */
 export async function provisionProviders(baseUrl: string, cfg: ModelsConfig, env: NodeJS.ProcessEnv, log: (s: string) => void) {
+  assertSafeBaseUrl(baseUrl);
   for (const p of cfg.providers) {
     const key = p.apiKey ?? (p.apiKeyEnv ? env[p.apiKeyEnv] : undefined);
     const label = p.manifest.name ?? p.manifest.type;

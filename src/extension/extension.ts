@@ -105,8 +105,9 @@ export async function deactivate() {
 
 async function modelsConfig(ctx: vscode.ExtensionContext): Promise<ModelsConfig> {
   const folder = rootFolder();
-  // The workspace can carry its own countersign.models.json; otherwise the extension's copy is used.
-  for (const dir of [folder?.uri.fsPath, ctx.extensionPath]) {
+  // Only the extension's own config: a cloned repo must not be able to point Countersign at another server.
+  void folder;
+  for (const dir of [ctx.extensionPath]) {
     if (!dir) continue;
     try {
       return await loadModelsConfig(dir);

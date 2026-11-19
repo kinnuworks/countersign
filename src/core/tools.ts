@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -8,6 +8,7 @@ import type { Workspace } from './workspace';
 import { gitStatus, run, safeRel } from './workspace';
 import type { Retriever, ContextPack } from './retriever';
 import type { ChangeJournal } from './journal';
+import { normalizeEdits } from './edits';
 
 export const EDITOR_SERVER = 'countersign-editor';
 export const EXTRAS_SERVER = 'countersign-extras';
@@ -44,7 +45,7 @@ export class ApprovalBook {
     if (a && typeof a === 'object' && fields[tool]) {
       const o = a as Record<string, unknown>;
       const picked: Record<string, unknown> = {};
-      for (const f of fields[tool]) if (o[f] !== undefined) picked[f] = f === 'edits' && Array.isArray(o[f]) ? (o[f] as Record<string, unknown>[]).map(e => ({ old_text: e.old_text, new_text: e.new_text })) : o[f];
+      for (const f of fields[tool]) if (o[f] !== undefined) picked[f] = f === 'edits' ? normalizeEdits(o[f]) : o[f];
       a = picked;
     }
     return `${tool}:${canonical(a)}`;
@@ -82,22 +83,24 @@ export class ApprovalBook {
   }
 }
 
-export function canonical(v: unknown): string {
+/** Stable key text for tool arguments. Only a top-level string is parsed as JSON (whole-arguments strings). */
+export function canonical(v: unknown, top = true): string {
   if (typeof v === 'string') {
-    // Arguments sometimes arrive as a JSON string.
-    try {
-      const parsed = JSON.parse(v);
-      if (parsed && typeof parsed === 'object') return canonical(parsed);
-    } catch {
-      /* plain string */
+    if (top) {
+      try {
+        const parsed = JSON.parse(v);
+        if (parsed && typeof parsed === 'object') return canonical(parsed, false);
+      } catch {
+        /* plain string */
+      }
     }
     return JSON.stringify(v);
   }
-  if (Array.isArray(v)) return `[${v.map(canonical).join(',')}]`;
+  if (Array.isArray(v)) return `[${v.map(x => canonical(x, false)).join(',')}]`;
   if (v && typeof v === 'object') {
     return `{${Object.keys(v as object)
       .sort()
-      .map(k => `${JSON.stringify(k)}:${canonical((v as Record<string, unknown>)[k])}`)
+      .map(k => `${JSON.stringify(k)}:${canonical((v as Record<string, unknown>)[k], false)}`)
       .join(',')}}`;
   }
   return JSON.stringify(v ?? null);
@@ -119,6 +122,19 @@ export interface ToolHost {
   onActivity?(a: ToolActivity): void;
   onContext?(pack: ContextPack, by: 'agent'): void;
   commandTimeoutMs?: number;
+  /** Prepended to PATH for approved commands only (a project virtualenv). */
+  commandPathPrefix?: string;
+}
+
+/** Approved commands get a small environment: no API keys, tokens or secrets from the editor's own. */
+export function commandEnv(prefix?: string): NodeJS.ProcessEnv {
+  const keep = /^(PATH|HOME|USER|LOGNAME|SHELL|LANG|LC_\w+|TERM|TMPDIR|TZ|PYTHONPATH|VIRTUAL_ENV|NODE_ENV)$/;
+  const env: NodeJS.ProcessEnv = {};
+  for (const [k, v] of Object.entries(process.env)) if (keep.test(k) && !/KEY|TOKEN|SECRET|PASSWORD/i.test(k)) env[k] = v;
+  if (prefix) env.PATH = `${prefix}:${env.PATH ?? ''}`;
+  env.FORCE_COLOR = '0';
+  env.NO_COLOR = '1';
+  return env;
 }
 
 const text = (s: string) => ({ content: [{ type: 'text' as const, text: s }] });
@@ -140,9 +156,9 @@ export function killRunningCommands() {
   liveChildren.clear();
 }
 
-function runShell(command: string, cwd: string, timeoutMs: number): Promise<{ code: number | null; output: string; timedOut: boolean }> {
+function runShell(command: string, cwd: string, timeoutMs: number, env: NodeJS.ProcessEnv): Promise<{ code: number | null; output: string; timedOut: boolean }> {
   return new Promise(resolve => {
-    const child = spawn(command, { cwd, shell: true, detached: true, env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' } });
+    const child = spawn(command, { cwd, shell: true, detached: true, env });
     liveChildren.add(child);
     let out = '';
     const cap = (b: Buffer) => {
@@ -278,7 +294,8 @@ function editorServer(host: ToolHost): McpServer {
         'Propose changes to ONE existing file as exact search/replace blocks. old_text must be copied exactly from the current file (enough lines to be unique); new_text replaces it. The user reviews every hunk before anything is written; the result tells you which hunks were applied or rejected. Put all changes for a file in one call; call it once per file (several files may be proposed in parallel).',
       inputSchema: {
         path: z.string(),
-        edits: z.array(z.object({ old_text: z.string(), new_text: z.string() })).min(1),
+        // Some models send the array as a JSON string; accept both and normalise.
+        edits: z.union([z.array(z.object({ old_text: z.string(), new_text: z.string() })).min(1), z.string()]),
         explanation: z.string().describe('one sentence: what this change does and why'),
       },
       annotations: { readOnlyHint: false, destructiveHint: true, title: 'Propose edit (reviewed)' },
@@ -307,7 +324,7 @@ function editorServer(host: ToolHost): McpServer {
       const d = host.book.take('run_command', args);
       if (!d || d.kind !== 'run') return text('Not run: no approval was recorded for this exact command.');
       act('run_command', { command: args.command }, 'running');
-      const r = await runShell(args.command, host.ws.root, host.commandTimeoutMs ?? 180_000);
+      const r = await runShell(args.command, host.ws.root, host.commandTimeoutMs ?? 180_000, commandEnv(host.commandPathPrefix));
       act('run_command', { command: args.command }, `exit ${r.code}${r.timedOut ? ' (timed out)' : ''}`);
       return text(`$ ${args.command}\nexit code: ${r.code}${r.timedOut ? ' (killed after timeout)' : ''}\n${r.output.slice(-12000)}`);
     },
@@ -381,12 +398,20 @@ export async function startToolServer(host: ToolHost, port = 0): Promise<ToolSer
         res.writeHead(404).end();
         return;
       }
-      if (req.headers.authorization !== `Bearer ${token}`) {
+      const got = Buffer.from(String(req.headers.authorization ?? ''));
+      const want = Buffer.from(`Bearer ${token}`);
+      if (got.length !== want.length || !timingSafeEqual(got, want)) {
         res.writeHead(401).end('unauthorized');
         return;
       }
       let body = '';
-      for await (const c of req) body += c;
+      for await (const c of req) {
+        body += c;
+        if (body.length > 5_000_000) {
+          res.writeHead(413).end('too large');
+          return;
+        }
+      }
       const server = which === 'editor' ? editorServer(host) : extrasServer(host);
       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
       res.on('close', () => {
@@ -396,7 +421,7 @@ export async function startToolServer(host: ToolHost, port = 0): Promise<ToolSer
       await server.connect(transport);
       await transport.handleRequest(req, res, body ? JSON.parse(body) : undefined);
     } catch (e) {
-      if (!res.headersSent) res.writeHead(500).end(String(e));
+      if (!res.headersSent) res.writeHead(500).end('internal error');
     }
   });
   await new Promise<void>((resolve, reject) => {
