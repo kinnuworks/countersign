@@ -78,7 +78,8 @@ export class Countersign {
   async runAgent(request: string, observer: RunObserver, signal: AbortSignal, opts: { pinned?: string[]; open?: string[]; budgetTokens?: number } = {}): Promise<RunResult & { pack: ContextPack }> {
     const pack = this.retriever.retrieve(request, { budgetTokens: opts.budgetTokens ?? 10_000, pinned: opts.pinned, open: opts.open });
     this.events.onContext?.(pack, 'auto');
-    const input = `${pack.text}\n\n---\nTask (from the user): ${request}`;
+    // The task goes first: TrueForge titles the session from the start of the first message.
+    const input = `${request}\n\n---\n${pack.text}`;
     const result = await this.forge.run({ agent: this.agents.coder, models: this.chain, input, title: `Countersign agent: ${request.slice(0, 60)}`, observer, signal, retry: this.retry });
     return { ...result, pack };
   }
@@ -102,6 +103,7 @@ export class Countersign {
       .map(h => `${h.file}:${h.line} ${h.name}`)
       .join('\n');
     const input = [
+      `${req.instruction}`,
       `File: ${req.path}`,
       `Selected lines ${s}-${e}:`,
       '<<<SELECTION',
