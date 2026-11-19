@@ -41,7 +41,7 @@ json.dump({"workbench.startupEditor": "none", "security.workspace.trust.enabled"
 PY
 APP="$(ls -d "$REPO"/.vscode-test/vscode-darwin-*/Visual\ Studio\ Code.app | tail -1)"
 CODE="$APP/Contents/MacOS/Code"
-"$CODE" --user-data-dir="$U" --extensions-dir="$X" --install-extension "$OUT/countersign.vsix" >/dev/null 2>&1
+"$APP/Contents/Resources/app/bin/code" --user-data-dir="$U" --extensions-dir="$X" --install-extension "$OUT/countersign.vsix" >/dev/null 2>&1
 FL="$WORK/flask-3.1.3"
 "$CODE" --user-data-dir="$U" --extensions-dir="$X" --disable-workspace-trust "$FL" >/dev/null 2>&1 &
 for i in $(seq 1 60); do [ -f "$D/log.txt" ] && break; echo '{"do":"wait","ms":1}' >> "$D/steps.jsonl"; sleep 1; done
