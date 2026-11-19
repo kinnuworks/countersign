@@ -38,3 +38,13 @@ test('a new file is one hunk that recreates the content', () => {
   const hunks = computeHunks('n.py', '', 'a\nb\n');
   assert.equal(applyHunks('', hunks, new Set(hunks.map(h => h.id))).replace(/\n$/, ''), 'a\nb');
 });
+
+test('a docstring edit and a code edit two lines apart are separate hunks', () => {
+  const orig = ['def f():', '    """Doc.', '    """', '    v = 1', '    return v in {0}', ''].join('\n');
+  const prop = ['def f():', '    """Doc.', '    More doc.', '    """', '    v = 1', '    return v in {0, 1}', ''].join('\n');
+  const hunks = computeHunks('f.py', orig, prop);
+  assert.equal(hunks.length, 2);
+  assert.equal(applyHunks(orig, hunks, new Set([hunks[0].id])), ['def f():', '    """Doc.', '    More doc.', '    """', '    v = 1', '    return v in {0}', ''].join('\n'));
+  assert.equal(applyHunks(orig, hunks, new Set([hunks[1].id])), ['def f():', '    """Doc.', '    """', '    v = 1', '    return v in {0, 1}', ''].join('\n'));
+  assert.equal(applyHunks(orig, hunks, new Set(hunks.map(h => h.id))), prop);
+});

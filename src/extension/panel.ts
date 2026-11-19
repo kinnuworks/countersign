@@ -14,7 +14,10 @@ export type ToWebview =
   | { type: 'git'; text: string; clean: boolean }
   | { type: 'changes'; items: { id: string; label: string; undone: boolean }[] }
   | { type: 'mentions'; items: { label: string; insert: string; detail: string }[] }
-  | { type: 'config'; chain: string[]; connected: boolean; url: string; note?: string };
+  | { type: 'config'; chain: string[]; connected: boolean; url: string; note?: string }
+  | { type: 'typeAndSend'; text: string; cps: number }
+  | { type: 'approveCommand'; id: string; command: string; explanation: string }
+  | { type: 'commandDecided'; id: string; allow: boolean };
 
 export type FromWebview =
   | { type: 'send'; text: string }
@@ -26,7 +29,8 @@ export type FromWebview =
   | { type: 'openDiff'; key: string }
   | { type: 'openSession' }
   | { type: 'mention'; query: string }
-  | { type: 'ready' };
+  | { type: 'ready' }
+  | { type: 'commandAnswer'; id: string; allow: boolean };
 
 export class AgentPanel implements vscode.WebviewViewProvider {
   static readonly id = 'countersign.agent';
@@ -178,7 +182,9 @@ window.addEventListener('message', ev => {
       c.innerHTML = '<div class="label">' + (m.by === 'auto' ? 'Context chosen automatically' : 'Agent asked for more context') + '</div>'
         + '<div class="muted">' + m.files.length + ' files · ' + m.used.toLocaleString() + ' of ' + m.budget.toLocaleString() + ' tokens · searched ' + m.indexed + ' files</div>'
         + '<div class="budget"><div style="width:' + pct + '%"></div></div>'
-        + m.files.map(f => '<div class="file">' + esc(f.path) + ' <span class="muted">' + f.tokens + ' tok</span></div><div class="why">' + esc(f.why) + '</div>').join('')
+        + (m.by === 'auto'
+          ? m.files.map(f => '<div class="file">' + esc(f.path) + ' <span class="muted">' + f.tokens + ' tok</span></div><div class="why">' + esc(f.why) + '</div>').join('')
+          : '<div class="file">' + m.files.map(f => esc(f.path)).join(', ') + '</div>')
         + (m.omitted ? '<div class="muted" style="margin-top:4px">Left out: ' + m.omitted + ' files (' + m.omittedSample.map(esc).join(', ') + (m.omitted > m.omittedSample.length ? ', …' : '') + ')</div>' : '');
       assistant = null; break;
     }
@@ -211,6 +217,25 @@ window.addEventListener('message', ev => {
     case 'git': add(div('status ' + (m.clean ? 'ok' : 'info'), esc(m.text))); break;
     case 'changes': { const live = m.items.filter(i => !i.undone); $('undo').disabled = !live.length; $('undo').title = live.length ? 'Undo: ' + live[live.length - 1].label : ''; break; }
     case 'mentions': showMentions(m.items); break;
+    case 'approveCommand': {
+      const c = add(div('card cmd'));
+      c.id = 'cmd-' + m.id;
+      c.innerHTML = '<div class="label">Run this command? TrueForge is waiting on this approval.</div><pre class="draft">$ ' + esc(m.command) + '</pre>'
+        + (m.explanation ? '<div class="why">' + esc(m.explanation) + '</div>' : '')
+        + '<div class="row" style="margin-top:4px"><button data-act="cmd" data-id="' + esc(m.id) + '" data-allow="1">Allow</button><button class="secondary" data-act="cmd" data-id="' + esc(m.id) + '" data-allow="0">Deny</button></div>';
+      assistant = null; break;
+    }
+    case 'commandDecided': {
+      const c = document.getElementById('cmd-' + m.id);
+      if (c) c.querySelectorAll('button').forEach(b => { b.disabled = true; if ((b.dataset.allow === '1') === m.allow) b.textContent = (m.allow ? '✓ Allowed' : '✗ Denied'); });
+      break;
+    }
+    case 'typeAndSend': {
+      input.focus(); input.value = '';
+      let i = 0;
+      const tick = () => { i++; input.value = m.text.slice(0, i); if (i < m.text.length) setTimeout(tick, 1000 / m.cps); else setTimeout(send, 450); };
+      tick(); break;
+    }
   }
 });
 
@@ -243,6 +268,7 @@ document.addEventListener('click', e => {
   if (a === 'all') vscode.postMessage({ type: 'all', decision: t.dataset.d });
   if (a === 'diff') vscode.postMessage({ type: 'openDiff', key: t.dataset.key });
   if (a === 'session') vscode.postMessage({ type: 'openSession' });
+  if (a === 'cmd') vscode.postMessage({ type: 'commandAnswer', id: t.dataset.id, allow: t.dataset.allow === '1' });
 });
 $('stop').onclick = () => vscode.postMessage({ type: 'stop' });
 $('undo').onclick = () => vscode.postMessage({ type: 'undo' });

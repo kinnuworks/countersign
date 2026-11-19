@@ -125,8 +125,16 @@
           "type": "number",
           "default": 10000,
           "description": "Token budget for the automatically retrieved context sent with each agent request."
+        },
+        "countersign.driverDir": {
+          "type": "string",
+          "default": "",
+          "description": "Recording and testing only: a folder whose steps.jsonl the demo driver plays. Leave empty."
         }
       }
+    },
+    "configurationDefaults": {
+      "diffEditor.codeLens": true
     }
   },
   "scripts": {

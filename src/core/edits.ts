@@ -109,9 +109,13 @@ export function applySearchReplace(original: string, edits: SearchReplace[]): Ed
   return { ok: errors.length === 0, text, errors };
 }
 
-/** Splits the change into reviewable hunks (2 lines of context, so nearby edits stay separate). */
+/**
+ * Splits the change into reviewable hunks. No context lines inside a hunk, so two edits a couple
+ * of lines apart (a docstring and the code under it) can be accepted or rejected separately;
+ * displays add surrounding lines themselves.
+ */
 export function computeHunks(file: string, original: string, proposed: string): Hunk[] {
-  const patch = structuredPatch(file, file, original, proposed, '', '', { context: 2 });
+  const patch = structuredPatch(file, file, original, proposed, '', '', { context: 0 });
   return patch.hunks.map((h, i) => ({
     id: `${file}#${i + 1}`,
     oldStart: h.oldStart,
@@ -133,8 +137,8 @@ export function applyHunks(original: string, hunks: Hunk[], accepted: Set<string
   const chosen = hunks.filter(h => accepted.has(h.id)).sort((a, b) => b.oldStart - a.oldStart);
   for (const h of chosen) {
     const replacement = h.lines.filter(l => !l.startsWith('-')).map(l => l.slice(1));
-    // jsdiff reports oldStart = 0 for an insertion into an empty file.
-    const start = original === '' ? 0 : h.oldLines === 0 ? h.oldStart : h.oldStart - 1;
+    // jsdiff numbers a pure insertion by the old line it goes before, so every hunk starts at oldStart - 1.
+    const start = Math.max(0, h.oldStart - 1);
     lines.splice(start, h.oldLines, ...replacement);
   }
   return lines.join(eol);
@@ -155,5 +159,7 @@ export function buildProposal(path: string, original: string | null, proposed: s
 export function summarizeHunk(h: Hunk): string {
   const added = h.lines.filter(l => l.startsWith('+')).length;
   const removed = h.lines.filter(l => l.startsWith('-')).length;
-  return `lines ${h.oldStart}-${h.oldStart + Math.max(h.oldLines - 1, 0)}: +${added} -${removed}`;
+  if (h.oldLines === 0) return `insert at line ${h.oldStart}: +${added}`;
+  const end = h.oldStart + h.oldLines - 1;
+  return `${end > h.oldStart ? `lines ${h.oldStart}-${end}` : `line ${h.oldStart}`}: +${added} -${removed}`;
 }

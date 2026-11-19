@@ -7,6 +7,7 @@ import type { ContextPack } from '../core/retriever';
 import { AgentPanel, type FromWebview } from './panel';
 import { ReviewManager } from './review';
 import { VscodeWorkspace } from './vscodeWorkspace';
+import { startDriver } from './driver';
 
 let cs: Countersign | undefined;
 let starting: Promise<Countersign> | undefined;
@@ -63,6 +64,38 @@ export async function activate(ctx: vscode.ExtensionContext) {
   );
   void vscode.commands.executeCommand('setContext', 'countersign.running', false);
   if (folder) void ensure(ctx).catch(() => undefined);
+  startDriver(ctx, {
+    state: () => ({ running: state.running, review: reviews.snapshot() }),
+    hasPendingCommand: () => pendingCommands.size > 0,
+    answerCommand: allow => {
+      const [id, fn] = [...pendingCommands.entries()].pop() ?? [];
+      if (id && fn) {
+        fn(allow);
+        panel.post({ type: 'commandDecided', id, allow });
+      }
+    },
+    decide: (file, n, decision) => {
+      const f = reviews.snapshot()?.files[file];
+      const h = f?.hunks[n - 1];
+      if (f && h) reviews.decide(f.key, h.id, decision);
+    },
+    typeInline: async (text, cps) => {
+      void vscode.commands.executeCommand('countersign.inlineEdit');
+      for (let i = 0; i < 40 && !openBox; i++) await new Promise(r => setTimeout(r, 50));
+      const box = openBox;
+      if (!box) throw new Error('inline edit box did not open');
+      for (let i = 1; i <= text.length; i++) {
+        box.value = text.slice(0, i);
+        await new Promise(r => setTimeout(r, 1000 / cps));
+      }
+      await new Promise(r => setTimeout(r, 400));
+      await vscode.commands.executeCommand('workbench.action.acceptSelectedQuickOpenItem');
+    },
+    typeAgent: async (text, cps) => {
+      await panel.reveal();
+      panel.post({ type: 'typeAndSend', text, cps });
+    },
+  });
 }
 
 export async function deactivate() {
@@ -175,11 +208,10 @@ function observer(mode: 'agent' | 'inline'): RunObserver {
       const props: { call: ToolCallInfo; p: PendingProposal }[] = [];
       for (const c of calls) {
         if (c.name === 'run_command') {
-          const choice = await vscode.window.showInformationMessage(`Countersign wants to run:\n${String(c.args.command)}`, { modal: false, detail: String(c.args.explanation ?? '') }, 'Allow', 'Deny');
-          if (signal.aborted) throw new Error('cancelled');
-          if (choice === 'Allow') recordCommand(cs!.book, c);
-          panel.post({ type: 'status', kind: 'info', text: `${choice === 'Allow' ? 'Allowed' : 'Denied'}: ${String(c.args.command)}` });
-          answers.push({ toolCallId: c.id, threadId: c.threadId, allow: choice === 'Allow', reason: choice === 'Allow' ? undefined : 'The user denied this command.' });
+          const allow = await askCommand(c, signal);
+          if (allow) recordCommand(cs!.book, c);
+          panel.post({ type: 'status', kind: 'info', text: `${allow ? 'Allowed' : 'Denied'}: ${String(c.args.command)}` });
+          answers.push({ toolCallId: c.id, threadId: c.threadId, allow, reason: allow ? undefined : 'The user denied this command.' });
           continue;
         }
         const r = await proposalFromCall(cs!.ws, c);
@@ -255,7 +287,7 @@ async function inlineEdit(ctx: vscode.ExtensionContext, given?: string) {
   if (!ed || ed.document.uri.scheme !== 'file') return void vscode.window.showWarningMessage('Countersign: select code in a file first.');
   if (current) return void vscode.window.showWarningMessage('Countersign is already running; press Esc to stop it.');
   const sel = ed.selection.isEmpty ? new vscode.Selection(ed.selection.active.line, 0, ed.selection.active.line, 0) : ed.selection;
-  const instruction = given ?? await vscode.window.showInputBox({ title: 'Countersign inline edit', prompt: `Instruction for ${vscode.workspace.asRelativePath(ed.document.uri)}:${sel.start.line + 1}-${sel.end.line + 1}`, placeHolder: 'e.g. handle empty input and update the docstring', ignoreFocusOut: true });
+  const instruction = given ?? (await askInstruction(`${vscode.workspace.asRelativePath(ed.document.uri)}:${sel.start.line + 1}-${sel.end.line + 1}`));
   if (!instruction) return;
   let instance: Countersign;
   try {
@@ -279,6 +311,50 @@ async function inlineEdit(ctx: vscode.ExtensionContext, given?: string) {
     current = undefined;
     setRunning(false);
   }
+}
+
+let openBox: vscode.InputBox | undefined;
+const pendingCommands = new Map<string, (allow: boolean) => void>();
+
+/** Command approvals live in the panel, next to the transcript that explains them. */
+function askCommand(c: ToolCallInfo, signal: AbortSignal): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    pendingCommands.set(c.id, allow => {
+      pendingCommands.delete(c.id);
+      resolve(allow);
+    });
+    panel.post({ type: 'approveCommand', id: c.id, command: String(c.args.command ?? ''), explanation: String(c.args.explanation ?? '') });
+    status.text = '$(terminal) Countersign: approve a command';
+    signal.addEventListener('abort', () => {
+      pendingCommands.delete(c.id);
+      reject(new Error('cancelled'));
+    }, { once: true });
+  });
+}
+
+/** The inline-edit prompt. A created InputBox (not showInputBox) so the demo driver can type into it visibly. */
+function askInstruction(where: string): Promise<string | undefined> {
+  return new Promise(resolve => {
+    const box = vscode.window.createInputBox();
+    box.title = 'Countersign: inline edit';
+    box.prompt = `Instruction for ${where}. Enter to send, Esc to cancel.`;
+    box.placeholder = 'e.g. handle empty input and update the docstring';
+    box.ignoreFocusOut = true;
+    let done = false;
+    box.onDidAccept(() => {
+      done = true;
+      const v = box.value.trim();
+      box.hide();
+      resolve(v || undefined);
+    });
+    box.onDidHide(() => {
+      openBox = undefined;
+      box.dispose();
+      if (!done) resolve(undefined);
+    });
+    openBox = box;
+    box.show();
+  });
 }
 
 function cancelRun(reason: string) {
@@ -314,6 +390,10 @@ async function onPanel(m: FromWebview) {
       return reviews.decideEverything(m.decision);
     case 'openDiff':
       return reviews.openByKey(m.key);
+    case 'commandAnswer':
+      pendingCommands.get(m.id)?.(m.allow);
+      panel.post({ type: 'commandDecided', id: m.id, allow: m.allow });
+      return;
     case 'openSession':
       if (lastSessionUrl) await vscode.env.openExternal(vscode.Uri.parse(lastSessionUrl));
       return;

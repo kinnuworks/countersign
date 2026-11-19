@@ -137,7 +137,7 @@ export class ReviewManager implements vscode.TextDocumentContentProvider, vscode
     for (const h of sorted) {
       const st = f.state.get(h.id)!;
       const firstChange = h.lines.findIndex(l => l[0] !== ' ');
-      const base = (h.oldLines === 0 ? h.oldStart : h.oldStart - 1) + shift;
+      const base = Math.max(0, h.oldStart - 1) + shift;
       if (st !== 'rejected') {
         const ctxBefore = h.lines.slice(0, Math.max(firstChange, 0)).length;
         out.push({ h, line: Math.max(0, base + ctxBefore) });
@@ -241,7 +241,15 @@ export class ReviewManager implements vscode.TextDocumentContentProvider, vscode
         path: f.proposal.file.path,
         explanation: f.proposal.explanation,
         isNew: f.proposal.file.original == null,
-        hunks: f.proposal.file.hunks.map((h, i) => ({ id: h.id, n: i + 1, state: f.state.get(h.id)!, summary: summarizeHunk(h), lines: h.lines.slice(0, 40), oldStart: h.oldStart })),
+        hunks: f.proposal.file.hunks.map((h, i) => {
+          // One line of the file around the hunk, so the card reads like a diff.
+          const orig = (f.proposal.file.original ?? '').split('\n');
+          const at = Math.max(0, h.oldStart - 1);
+          const before = at > 0 && orig[at - 1] !== undefined ? [` ${orig[at - 1]}`] : [];
+          const afterIdx = at + h.oldLines;
+          const after = orig[afterIdx] !== undefined && f.proposal.file.original ? [` ${orig[afterIdx]}`] : [];
+          return { id: h.id, n: i + 1, state: f.state.get(h.id)!, summary: summarizeHunk(h), lines: [...before, ...h.lines.slice(0, 40), ...after], oldStart: h.oldStart };
+        }),
       })),
     };
   }
