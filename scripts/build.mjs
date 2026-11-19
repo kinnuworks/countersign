@@ -8,3 +8,4 @@ const tests = readdirSync('test').filter(f => f.endsWith('.test.ts')).map(f => `
 if (tests.length) await build({ ...common, entryPoints: tests, outdir: 'out-test' });
 await build({ ...common, entryPoints: ['e2e/suite.ts'], outfile: 'out/e2e.js', external: ['vscode'] });
 await build({ ...common, entryPoints: ['e2e/run.ts'], outfile: 'out/e2e-run.js' });
+await build({ ...common, entryPoints: ['evidence/replay.ts'], outfile: 'out/replay.js' });
