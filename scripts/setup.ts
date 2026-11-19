@@ -22,12 +22,10 @@ async function main() {
   }
   const argv = process.argv.slice(2);
   if (argv.includes('--broken-endpoint')) {
-    const r = await fetch(`${base}/api/v1/settings/model-providers`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ manifest: { type: 'custom', name: 'broken-endpoint', base_url: 'http://127.0.0.1:9/v1', auth: { api_key: 'not-a-real-key' }, models: [{ model_id: 'unreachable', name: 'unreachable', properties: { context_length: 128000, max_output_tokens: 4096 } }] } }),
-    });
-    console.log(r.ok || r.status === 409 ? 'ok broken-endpoint/unreachable (points at 127.0.0.1:9, nothing listens there)' : `FAILED ${r.status} ${await r.text()}`);
+    const body = JSON.stringify({ manifest: { type: 'custom', name: 'broken-endpoint', base_url: 'http://127.0.0.1:9/v1', auth: { api_key: 'not-a-real-key' }, models: [{ model_id: 'unreachable', name: 'unreachable', properties: { context_length: 128000, max_output_tokens: 4096 } }] } });
+    let r = await fetch(`${base}/api/v1/settings/model-providers`, { method: 'POST', headers: { 'content-type': 'application/json' }, body });
+    if (r.status === 409) r = await fetch(`${base}/api/v1/settings/model-providers`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body });
+    console.log(r.ok ? 'ok broken-endpoint/unreachable (points at 127.0.0.1:9, nothing listens there)' : `FAILED ${r.status} ${await r.text()}`);
     return;
   }
   const breakIdx = argv.indexOf('--break-key');

@@ -6,3 +6,5 @@ await build({ ...common, entryPoints: ['harness/tasks.ts'], outfile: 'out/harnes
 await build({ ...common, entryPoints: ['scripts/setup.ts'], outfile: 'out/setup.js' });
 const tests = readdirSync('test').filter(f => f.endsWith('.test.ts')).map(f => `test/${f}`);
 if (tests.length) await build({ ...common, entryPoints: tests, outdir: 'out-test' });
+await build({ ...common, entryPoints: ['e2e/suite.ts'], outfile: 'out/e2e.js', external: ['vscode'] });
+await build({ ...common, entryPoints: ['e2e/run.ts'], outfile: 'out/e2e-run.js' });

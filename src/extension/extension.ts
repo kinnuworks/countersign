@@ -16,6 +16,8 @@ let panel: AgentPanel;
 let reviews: ReviewManager;
 let status: vscode.StatusBarItem;
 let output: vscode.OutputChannel;
+/** What the end-to-end test (and the status bar) can read back. */
+const state: { running: boolean; last?: { status: string; model?: string; attempts: RunResult['attempts']; error?: string }; statuses: string[] } = { running: false, statuses: [] };
 
 function cfg() {
   return vscode.workspace.getConfiguration('countersign');
@@ -42,11 +44,16 @@ export async function activate(ctx: vscode.ExtensionContext) {
     status,
     vscode.window.registerWebviewViewProvider(AgentPanel.id, panel, { webviewOptions: { retainContextWhenHidden: true } }),
     vscode.commands.registerCommand('countersign.inlineEdit', () => inlineEdit(ctx)),
+    // For scripted runs (tests, recordings): same path as the keybinding, with the instruction given.
+    vscode.commands.registerCommand('countersign.inlineEditWith', (instruction: string) => inlineEdit(ctx, instruction)),
+    vscode.commands.registerCommand('countersign.state', () => ({ ...state, review: reviews.snapshot(), connected: !!cs, journal: cs?.journal.all().map(c => ({ id: c.id, label: c.label, undone: c.undone })) ?? [] })),
     vscode.commands.registerCommand('countersign.cancel', () => cancelRun('Stopped by you')),
     vscode.commands.registerCommand('countersign.undo', () => undo()),
     vscode.commands.registerCommand('countersign.openSession', () => lastSessionUrl && vscode.env.openExternal(vscode.Uri.parse(lastSessionUrl))),
     vscode.commands.registerCommand('countersign.agentRequest', (text: string) => agentRun(ctx, text)),
     vscode.commands.registerCommand('countersign.reconnect', async () => {
+      // Let an in-flight start finish first, so its MCP registration cannot land after ours.
+      await starting?.catch(() => undefined);
       await cs?.stop();
       cs = undefined;
       starting = undefined;
@@ -129,6 +136,7 @@ function postContext(pack: ContextPack, by: 'auto' | 'agent') {
 }
 
 function setRunning(on: boolean, label = '') {
+  state.running = on;
   void vscode.commands.executeCommand('setContext', 'countersign.running', on);
   panel.post({ type: 'running', running: on });
   status.text = on ? `$(sync~spin) Countersign: ${label} · Esc to stop` : '$(shield) Countersign';
@@ -139,6 +147,7 @@ function observer(mode: 'agent' | 'inline'): RunObserver {
   let draftThrottle = 0;
   return {
     onStatus: (text, kind) => {
+      state.statuses.push(`${kind}: ${text}`);
       panel.post({ type: 'status', text, kind });
       if (kind === 'warn') void vscode.window.setStatusBarMessage(`Countersign: ${text}`, 6000);
     },
@@ -202,6 +211,7 @@ function observer(mode: 'agent' | 'inline'): RunObserver {
 
 async function finish(result: RunResult, startedClean: string | null) {
   const instance = cs!;
+  state.last = { status: result.status, model: result.model, attempts: result.attempts, error: result.error };
   const st = await instance.gitStatus();
   if (result.status === 'cancelled') {
     panel.post({ type: 'status', kind: 'warn', text: 'Cancelled. The model stopped, open reviews were dropped, and no half-applied edits exist (writes only happen inside an approved, complete tool call).' });
@@ -240,12 +250,12 @@ async function agentRun(ctx: vscode.ExtensionContext, text: string) {
   }
 }
 
-async function inlineEdit(ctx: vscode.ExtensionContext) {
+async function inlineEdit(ctx: vscode.ExtensionContext, given?: string) {
   const ed = vscode.window.activeTextEditor;
   if (!ed || ed.document.uri.scheme !== 'file') return void vscode.window.showWarningMessage('Countersign: select code in a file first.');
   if (current) return void vscode.window.showWarningMessage('Countersign is already running; press Esc to stop it.');
   const sel = ed.selection.isEmpty ? new vscode.Selection(ed.selection.active.line, 0, ed.selection.active.line, 0) : ed.selection;
-  const instruction = await vscode.window.showInputBox({ title: 'Countersign inline edit', prompt: `Instruction for ${vscode.workspace.asRelativePath(ed.document.uri)}:${sel.start.line + 1}-${sel.end.line + 1}`, placeHolder: 'e.g. handle empty input and update the docstring', ignoreFocusOut: true });
+  const instruction = given ?? await vscode.window.showInputBox({ title: 'Countersign inline edit', prompt: `Instruction for ${vscode.workspace.asRelativePath(ed.document.uri)}:${sel.start.line + 1}-${sel.end.line + 1}`, placeHolder: 'e.g. handle empty input and update the docstring', ignoreFocusOut: true });
   if (!instruction) return;
   let instance: Countersign;
   try {

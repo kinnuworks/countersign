@@ -232,7 +232,8 @@ export class Forge {
       sessionId = session.id;
       observer.onSession?.({ sessionId: session.id, model: opts.model, url: this.sessionUrl(session.id) });
     } catch (e) {
-      return { status: 'error', output: '', error: `could not create a TrueForge session: ${(e as Error).message}`, wrote };
+      const body = (e as { body?: { error?: { message?: string } } }).body?.error?.message;
+      return { status: 'error', output: '', error: `[Model Error] TrueForge refused a session for ${opts.model}: ${body ?? (e as Error).message}`, wrote };
     }
     const sid = sessionId;
     const onAbort = () => {

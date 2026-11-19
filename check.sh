@@ -11,6 +11,8 @@ cd "$(dirname "$0")"
 npx tsc -p tsconfig.json
 node scripts/build.mjs
 node --test out-test/
+# The real editor against the real TrueForge and models (Task A, undo, cancel, Task C fallback).
+scripts/e2e.sh
 
 # Evidence labels: once evidence/EVAL_PLAN.md exists, the public text (README, submission text,
 # video script) must label every evidence claim for its kind.
@@ -18,4 +20,4 @@ if [ -f evidence/EVAL_PLAN.md ] && [ -f evidence_lint.py ]; then
   python3 -I evidence_lint.py
 fi
 
-echo "check.sh: typecheck, build and unit tests passed"
+echo "check.sh: typecheck, build, unit tests and in-editor e2e passed"
