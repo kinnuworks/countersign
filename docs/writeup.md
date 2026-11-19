@@ -59,7 +59,19 @@ Switching models: TrueForge Settings → Models (or `npm run setup` from `counte
 
 ## 6. Scorecard
 
-{{SCORECARD}}
+Timestamps refer to the demo video.
+
+| Criterion | Video | Claim |
+|---|---|---|
+| A1 Inline edit | {{T_A}} | `Cmd+Alt+K` on `get_debug_flag`; the diff opens with ✓/✗ on each of its 2 hunks (CodeLens and panel); verified `False` |
+| A2 Agent mode | {{T_B}} | one request, no files named; the agent found and edited `cli.py`, `test_cli.py`, `docs/cli.rst` (+ changelog/API docs) |
+| A3 Streaming and cancellation | {{T_STOP}} | tokens and drafts stream live; Esc cancels the TrueForge turn at once; `git status` clean |
+| B1 Context assembly | {{T_CTX}} | Context card: 10k-token budget bar, each chosen file with its reason, files left out; context-scout subagent |
+| B2 Diff safety | {{T_UNDO}} | per-hunk accept/reject; "Undo last change" restores the file, `git status` clean |
+| B3 Resilience | {{T_C}} | TrueForge's Anthropic provider pointed at a dead address: 2 retries with backoff, then automatic fallback; no files changed before accept |
+| B4 TrueForge depth | {{T_SESSION}} | MCP editor tools; approval pauses drive the review; subagent and deferred extras server visible in the TrueForge session |
+| C1 Video | 0:00-{{T_END}} | Tasks A, B, C in order, each verified in the terminal on screen |
+| C2 Write-up | this document | architecture, context strategy and its measured result, model costs, trade-offs, limitations |
 
 ## 7. Tools used
 

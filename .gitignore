@@ -10,3 +10,4 @@ countersign.models.json
 out-test/
 evidence/runs/
 *.vsix
+docs/writeup.html
