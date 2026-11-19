@@ -1,0 +1,8 @@
+date,model,task,status,seconds,check,detail
+2026-11-20,anthropic/claude-sonnet-5-5,A,done,10,pass,"off->False; 1->True"
+2026-11-20,anthropic/claude-sonnet-5-5,B,done,86,pass,"files=5; 60 passed in 0.73s; masked=yes; in_help=1"
+2026-11-20,anthropic/claude-haiku-5-5,A,done,6,pass,"off->False; 1->True"
+2026-11-20,anthropic/claude-haiku-5-5,B,done,57,pass,"files=3; 60 passed in 0.09s; masked=yes; in_help=1"
+2026-11-20,ollama/gemma4-e4b,A,error,202,fail,"off->True; 1->True (error: output truncated after 2610 tokens; 202 s)"
+2026-11-20,ollama/gemma4-e4b,B,not run,0,n/a,"stopped after Task A failed"
+2026-11-20,anthropic-openai/claude-haiku-5-5,A,done,7,pass,"off->False (harness run, via the OpenAI-compatible endpoint)"

@@ -55,7 +55,7 @@ For the hackathon's fixed tasks, `scripts/prepare-flask.sh ~/flask` gives you pa
 |---|---|---|
 | A. Inline edit | Select `get_debug_flag` in `src/flask/helpers.py`, `Cmd+Alt+K`, give the instruction, accept | `FLASK_DEBUG=off python -c "from flask.helpers import get_debug_flag; print(get_debug_flag())"` prints `False` |
 | B. Agent mode | In the panel, with no files named, ask for the `flask config` command, review the hunks, accept, allow the test run | `pytest tests/test_cli.py -q` passes; `flask --app <app> config` prints masked JSON; the diff touches 3+ files; "Open TrueForge session" shows turns and tool calls |
-| C. Resilience | Put an unreachable endpoint or invalid key first in the chain (`npm run setup -- --broken-endpoint` adds one), repeat Task A | the editor stays responsive, the panel shows the retries and the switch to the next model, `git status` shows no files changed before you accept |
+| C. Resilience | Break the first model's provider inside TrueForge: `npm run setup -- --break-endpoint anthropic` points it at an address nothing listens on (or edit it in TrueForge → Settings → Models). Repeat Task A. `npm run setup -- --restore anthropic` afterwards | the editor stays responsive, the panel shows two retries with backoff and the switch to the next model in the chain, `git status` shows no files changed before you accept |
 
 ## How it uses TrueForge
 
@@ -100,10 +100,16 @@ Evidence, stated plainly: no real users yet; it was built for this hackathon. In
 > **Result:** `scripts/e2e.sh` passed: Task A verified, undo restored a clean `git status`, Stop cancelled in 203 ms with no files changed, and Task C fell back after 3 failed attempts on the unreachable endpoint.
 > **Rerun:** `scripts/e2e.sh`. **Limits:** one machine, one model chain.
 
+> **Claim:** the fixed tasks pass on more than one model, headless, with the checks the video uses.
+> **Evidence type:** Our own break test (we tried to make it fail), not real users.
+> **Result** (`evidence/results/matrix.csv`): Claude Sonnet 5.5 passes A and B (B changed 5 files); Claude Haiku 5.5 passes A and B (3 files); Haiku through the OpenAI-compatible endpoint passes A; gemma4 e4b (local, Ollama) fails A.
+> **Rerun:** `scripts/matrix.sh "<model> ..."`. **Limits:** one run per model and task.
+
 ## What doesn't work yet
 
 - The extension is not on the Marketplace (out of scope); load it with F5 or the `.vsix`.
-- Task C's "invalid key" variant needs `npm run setup -- --break-key anthropic` and `--restore anthropic` afterwards; TrueForge has one Anthropic provider, so the fallback model must come from another provider (the example chain falls back to a local Ollama model).
+- TrueForge allows one native Anthropic provider, so the example chain's fallback is Claude Haiku through Anthropic's OpenAI-compatible endpoint, registered as a separate custom provider. A broken native provider then still leaves a working model. For an invalid key instead of an unreachable endpoint: `npm run setup -- --break-key anthropic`.
+- A small local model (gemma4 e4b on Ollama) did not finish Task A on our Mac: its output was cut off after about 3 minutes (see the model matrix below). Larger local models should do better; we did not test them.
 - Retrieval understands Python structure best; other languages are chunked by line windows.
 - A rejected hunk is not re-proposed automatically; the model is told, and you can ask again.
 
