@@ -55,12 +55,21 @@ T0=$(python3 -c 'import time;print(time.time())')
 say() { printf '%s\n' "$@" >> "$D/steps.jsonl"; }
 mark() { echo "$(python3 -c "import time;print(round(time.time()-$T0,1))") $1" >> "$OUT/marks.txt"; }
 wait_log() { # wait until the driver has finished every queued step
-  local n; n=$(wc -l < "$D/steps.jsonl")
-  for i in $(seq 1 900); do
-    local done; done=$(grep -c '^.* done$\|^.* error ' "$D/log.txt" 2>/dev/null || echo 0)
-    [ "$done" -ge "$n" ] && return 0; sleep 1
-  done
-  echo "driver timed out"; return 1
+  python3 - "$D" <<'PY'
+import sys, time, os
+d = sys.argv[1]
+for _ in range(1800):
+    n = sum(1 for l in open(os.path.join(d, 'steps.jsonl')) if l.strip())
+    try:
+        log = open(os.path.join(d, 'log.txt')).read().splitlines()
+    except FileNotFoundError:
+        log = []
+    fin = sum(1 for l in log if l.endswith(' done') or ' error ' in l)
+    if fin >= n:
+        sys.exit(0)
+    time.sleep(0.5)
+print('driver timed out'); sys.exit(1)
+PY
 }
 TASK_A="Treat the values 'off' and 'n' as false as well, case-insensitively, and update the docstring to list every value that is treated as false."
 TASK_B='Add a new built-in CLI command flask config that prints the loaded application'"'"'s configuration as JSON, masking the values of any key containing SECRET, PASSWORD, TOKEN or KEY as \"***\". It must appear in flask --help, be covered by a test, and be documented alongside the other built-in commands.'
