@@ -51,9 +51,10 @@ CODE="$APP/Contents/MacOS/Code"
 FL="$WORK/flask-3.1.3"
 # Keep painting when another window covers this one: Chromium otherwise stops drawing occluded
 # windows, and the capture freezes on the last frame.
-"$CODE" --user-data-dir="$U" --extensions-dir="$X" --disable-workspace-trust \
+# The folder goes first: the editor's argument parser would read it as the last switch's value.
+"$CODE" "$FL" --user-data-dir="$U" --extensions-dir="$X" --disable-workspace-trust \
   --disable-renderer-backgrounding --disable-backgrounding-occluded-windows --disable-background-timer-throttling \
-  "$FL" >/dev/null 2>&1 &
+  >/dev/null 2>&1 &
 for i in $(seq 1 60); do [ -f "$D/log.txt" ] && break; echo '{"do":"wait","ms":1}' >> "$D/steps.jsonl"; sleep 1; done
 [ -f "$D/log.txt" ] || { echo "driver did not start"; exit 1; }
 sleep 3
