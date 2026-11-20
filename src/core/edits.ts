@@ -166,9 +166,14 @@ export function computeHunks(file: string, original: string, proposed: string): 
  * Hunks never overlap (jsdiff merges close ones), so applying bottom-up keeps line numbers valid.
  */
 export function applyHunks(original: string, hunks: Hunk[], accepted: Set<string>): string {
-  const eol = original.includes('\r\n') ? '\r\n' : '\n';
-  // An empty original has no lines; split('') would give one phantom empty line.
-  const lines = original === '' ? [] : original.split(/\r?\n/);
+  // A file with no line break yet (or a new one) takes its line endings from the proposal
+  // (jsdiff keeps the \r on CRLF lines).
+  const crlf = original.includes('\n') ? original.includes('\r\n') : hunks.some(h => h.lines.some(l => l.endsWith('\r')));
+  const eol = crlf ? '\r\n' : '\n';
+  // The final newline is kept as a flag, not as a line, so the array matches jsdiff's line numbers.
+  // A new file ends with one unless its hunk says otherwise.
+  let finalNl = original === '' || /\n$/.test(original);
+  const lines = original === '' ? [] : original.replace(/\r?\n$/, '').split(/\r?\n/);
   const chosen = hunks.filter(h => accepted.has(h.id)).sort((a, b) => b.oldStart - a.oldStart);
   for (const h of chosen) {
     // jsdiff keeps a trailing \r on lines of CRLF files; strip it, since lines are rejoined with eol.
@@ -176,14 +181,10 @@ export function applyHunks(original: string, hunks: Hunk[], accepted: Set<string
     // jsdiff numbers a pure insertion by the old line it goes before, so every hunk starts at oldStart - 1.
     const start = Math.max(0, h.oldStart - 1);
     lines.splice(start, h.oldLines, ...replacement);
+    if (h.eof) finalNl = h.eof === 'add';
   }
-  let out = lines.join(eol);
-  // The final newline is not a line of its own, so a hunk that adds or removes it says so in eof.
-  const eofChange = chosen.find(h => h.eof)?.eof;
-  if (original === '') return out !== '' && eofChange !== 'remove' ? out + eol : out;
-  if (eofChange === 'add' && !out.endsWith(eol)) out += eol;
-  if (eofChange === 'remove' && out.endsWith(eol)) out = out.slice(0, -eol.length);
-  return out;
+  if (lines.length === 0) return '';
+  return lines.join(eol) + (finalNl ? eol : '');
 }
 
 export interface FileProposal {

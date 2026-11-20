@@ -44,7 +44,7 @@ export function safeRel(root: string, rel: string): string {
   const cleaned = rel.replace(/^\.\/+/, '').replace(/\\/g, '/');
   const abs = path.resolve(root, cleaned);
   const back = path.relative(root, abs);
-  if (back.startsWith('..') || path.isAbsolute(back) || back === '') {
+  if (back === '..' || back.startsWith('..' + path.sep) || path.isAbsolute(back) || back === '') {
     throw new Error(`path "${rel}" is outside the workspace`);
   }
   const out = back.split(path.sep).join('/');
