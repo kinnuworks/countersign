@@ -6,7 +6,16 @@ A coding agent for VS Code. You ask for a change; it finds the files itself and 
 
 ![Task A: an inline edit on Flask arrives as two hunks; each is accepted on its own, in the editor and in the panel](media/countersign-task-a.gif)
 
-The full demo (Tasks A, B and C on pallets/flask 3.1.3, 3:17) is linked from the submission.
+What the 3:17 demo video shows, on pallets/flask 3.1.3, each step checked in the terminal on screen:
+
+| Time | What you see |
+|---|---|
+| 0:05 | **Task A, inline edit.** `Cmd+Alt+K` on `get_debug_flag`; two hunks, each accepted on its own; `FLASK_DEBUG=off` then prints `False` |
+| 0:27 | **Undo.** "Undo last change" restores the file; `git status` is clean |
+| 0:32 | **Task B, agent mode.** One request, no files named. The Context card (0:39) shows 9,653 of 10,000 tokens used and why each file was chosen; a context-scout subagent explores; 5 files arrive as a per-hunk review; `63 passed`; `flask config` prints masked JSON |
+| 2:20 | **TrueForge session** for Task B: 1 turn, 24 tool calls, 1 sub-agent, approval pauses on the timeline |
+| 2:32 | **Task C, model failure.** First model unreachable: 2 retries with backoff (0.8 s, 1.6 s), then the next model takes over with no click; `git status` shows no files changed before accept |
+| 3:03 | **Stop** mid-answer: the TrueForge turn is cancelled and `git status` stays clean |
 
 **Measured, back-test on public data (pallets/flask history, 2021-2026):** for 21 of 79 held-out Flask commits, every file the commit edited landed in Countersign's 10,000-token context pack, against 11 of 79 for whole-file BM25 as used in SWE-bench (paired difference +0.127, 95% interval 0.025 to 0.228). No real users yet. Details and rerun command under [Evidence](#evidence).
 
