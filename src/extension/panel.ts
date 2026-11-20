@@ -186,11 +186,11 @@ function html(n: string): string {
   .budget-row b { font-variant-numeric: tabular-nums; }
   .budget { height: 8px; background: var(--surface-2); border: 1px solid var(--rule); border-radius: 99px; overflow: hidden; margin: 6px 0 4px; }
   .budget > div { height: 100%; background: var(--signal); }
-  .file { margin-top: 10px; }
+  .file { margin-top: 7px; }
   .file-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
   .path { font-family: var(--font-code); font-size: var(--fs-s); color: var(--ink); overflow-wrap: anywhere; }
   .tok { font-family: var(--font-code); font-size: var(--fs-s); color: var(--muted); white-space: nowrap; }
-  .why { font-size: var(--fs-s); color: var(--muted); line-height: 1.45; margin-top: 2px; }
+  .why { font-size: var(--fs-s); color: var(--muted); line-height: 1.45; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .role { display: inline-block; font-family: var(--font-label); font-size: var(--fs-s); line-height: 1.3; padding: 0 6px; border-radius: var(--r-btn); background: var(--chip); color: var(--on-chip); text-transform: var(--label-case); letter-spacing: var(--label-track); margin-right: 6px; }
   .left-out { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--rule); }
 
@@ -273,7 +273,12 @@ const log = $('log');
 let running = false, assistant = null, assistantThread = null, review = null, draftEl = null, chain = [];
 const threads = {};
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function add(el) { log.appendChild(el); window.scrollTo(0, document.body.scrollHeight); return el; }
+// The transcript follows new output, except for a few seconds after the context card appears,
+// so the files it chose (and why) can be read before the run's output pushes them up.
+let holdUntil = 0;
+function follow() { if (Date.now() >= holdUntil) window.scrollTo(0, document.body.scrollHeight); }
+function hold(el, ms) { holdUntil = Date.now() + ms; window.scrollTo(0, el.offsetTop - $('header').offsetHeight - 10); setTimeout(follow, ms + 20); }
+function add(el) { log.appendChild(el); follow(); return el; }
 function div(cls, html) { const d = document.createElement('div'); d.className = cls; if (html !== undefined) d.innerHTML = html; return d; }
 // A card: a head with a title (the part before the first " · ") and its meta, then a body.
 function card(kind, label, body, avatar) {
@@ -341,7 +346,8 @@ window.addEventListener('message', ev => {
         + '<div class="budget"><div style="width:' + pct + '%"></div></div>'
         + (m.by === 'auto' ? m.files.map(fileRow).join('') : '<div class="file"><span class="path">' + m.files.map(f => esc(f.path)).join(', ') + '</span></div>')
         + (m.omitted ? '<div class="left-out muted">Left out: ' + m.omitted + ' files (' + m.omittedSample.map(esc).join(', ') + (m.omitted > m.omittedSample.length ? ', …' : '') + ')</div>' : '');
-      add(card('context', label, body));
+      const ctxCard = add(card('context', label, body));
+      if (m.by === 'auto') hold(ctxCard, 6000);
       finishAssistant(); assistant = null; break;
     }
     case 'thread': {
@@ -355,18 +361,18 @@ window.addEventListener('message', ev => {
     }
     case 'delta': {
       if (!assistant || assistantThread !== m.thread) { finishAssistant(); const c = div('reply'); c.dataset.raw = ''; container(m.thread).appendChild(c); assistant = c; assistantThread = m.thread; }
-      assistant.dataset.raw += m.text; assistant.textContent = assistant.dataset.raw; window.scrollTo(0, document.body.scrollHeight); break;
+      assistant.dataset.raw += m.text; assistant.textContent = assistant.dataset.raw; follow(); break;
     }
     case 'draft': {
       const t = partialNewText(m.preview);
       if (t == null) break;
       if (!draftEl) { const c = card('drafting', 'Drafting ' + esc(m.name) + '…'); draftEl = div('draft'); c.querySelector('.card-body').appendChild(draftEl); container(m.thread).appendChild(c); }
-      draftEl.textContent = t; draftEl.scrollTop = draftEl.scrollHeight; window.scrollTo(0, document.body.scrollHeight); break;
+      draftEl.textContent = t; draftEl.scrollTop = draftEl.scrollHeight; follow(); break;
     }
     case 'tool': {
       draftEl = null;
       const d = div('tool', '<span class="tname">⚙ ' + esc(m.name) + '</span> ' + esc(m.detail) + (m.result ? ' <span class="res">→ ' + esc(m.result) + '</span>' : ''));
-      container(m.thread).appendChild(d); finishAssistant(); assistant = null; window.scrollTo(0, document.body.scrollHeight); break;
+      container(m.thread).appendChild(d); finishAssistant(); assistant = null; follow(); break;
     }
     case 'review': renderReview(m.snapshot); break;
     case 'git': add(div('status git ' + (m.clean ? 'ok' : 'info'), esc(m.text))); break;
