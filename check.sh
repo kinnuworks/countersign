@@ -10,7 +10,7 @@ cd "$(dirname "$0")"
 
 npx tsc -p tsconfig.json
 node scripts/build.mjs
-node --test out-test/
+node --test out-test/*.test.js
 # The real editor against the real TrueForge and models (Task A, undo, cancel, Task C fallback).
 scripts/e2e.sh
 

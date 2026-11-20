@@ -143,7 +143,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc -p tsconfig.json",
-    "test:unit": "node scripts/build.mjs && node --test out-test/",
+    "test:unit": "node scripts/build.mjs && node --test out-test/*.test.js",
     "setup": "node scripts/build.mjs && node --env-file-if-exists=.env.local out/setup.js",
     "task": "node out/harness.js",
     "package": "node scripts/build.mjs && vsce package --no-dependencies --allow-missing-repository"

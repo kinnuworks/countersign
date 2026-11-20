@@ -83,6 +83,8 @@ It packs the best chunks, with each file's outline and the reason it was chosen,
 
 ## Check it yourself
 
+First get Flask with its full history, which the retriever tests, the end-to-end script and the back-test read: `git clone https://github.com/pallets/flask .ref/flask && git -C .ref/flask checkout -q 3.1.3` (or point `FLASK_DIR` at a checkout you have). Without it, the two retriever tests skip and say why.
+
 - `./check.sh`: typecheck, unit tests, and `scripts/e2e.sh`, which starts a real VS Code with the extension against your running TrueForge on a fresh Flask 3.1.3. It runs Task A (review, accept, verify), undo, Stop in the middle of an agent run, and Task C with an unreachable first model.
 - `node out/harness.js --repo <flask> --task B`: the same core, headless, with an auto-reviewer.
 - `node out/replay.js <flask-git-dir>`: the retrieval back-test below.
