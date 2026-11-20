@@ -73,6 +73,8 @@ For the hackathon's fixed tasks, `scripts/prepare-flask.sh ~/flask` gives you pa
 
 ## How it uses TrueForge
 
+[docs/CODE_TOUR.md](docs/CODE_TOUR.md) follows one request through the code, file by file.
+
 | TrueForge feature | What it does here | Code |
 |---|---|---|
 | Sessions, streamed turns, cancel (TypeScript SDK) | every agent and inline run; tokens render as they arrive; Stop calls `sessions.cancel` | [src/core/forge.ts](src/core/forge.ts) |
