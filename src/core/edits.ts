@@ -35,6 +35,8 @@ export interface Hunk {
   newLines: number;
   /** Unified-diff body lines, each starting with ' ', '+' or '-'. */
   lines: string[];
+  /** Set when this hunk adds ('add') or removes ('remove') the file's final newline. */
+  eof?: 'add' | 'remove';
 }
 
 function countOccurrences(haystack: string, needle: string): number {
@@ -136,14 +138,27 @@ export function applySearchReplace(original: string, rawEdits: SearchReplace[]):
  */
 export function computeHunks(file: string, original: string, proposed: string): Hunk[] {
   const patch = structuredPatch(file, file, original, proposed, '', '', { context: 0 });
-  return patch.hunks.map((h, i) => ({
-    id: `${file}#${i + 1}`,
-    oldStart: h.oldStart,
-    oldLines: h.oldLines,
-    newStart: h.newStart,
-    newLines: h.newLines,
-    lines: h.lines.filter(l => !l.startsWith('\\')),
-  }));
+  return patch.hunks.map((h, i) => {
+    // jsdiff marks a side without a final newline with a '\\ No newline' line after that side's last line.
+    let oldNoNl = false, newNoNl = false;
+    h.lines.forEach((l, j) => {
+      if (!l.startsWith('\\') || j === 0) return;
+      const prev = h.lines[j - 1][0];
+      if (prev === '-' || prev === ' ') oldNoNl = true;
+      if (prev === '+' || prev === ' ') newNoNl = true;
+    });
+    const hunk: Hunk = {
+      id: `${file}#${i + 1}`,
+      oldStart: h.oldStart,
+      oldLines: h.oldLines,
+      newStart: h.newStart,
+      newLines: h.newLines,
+      lines: h.lines.filter(l => !l.startsWith('\\')),
+    };
+    if (oldNoNl !== newNoNl && original !== '') hunk.eof = oldNoNl ? 'add' : 'remove';
+    if (original === '' && newNoNl) hunk.eof = 'remove';
+    return hunk;
+  });
 }
 
 /**
@@ -162,9 +177,13 @@ export function applyHunks(original: string, hunks: Hunk[], accepted: Set<string
     const start = Math.max(0, h.oldStart - 1);
     lines.splice(start, h.oldLines, ...replacement);
   }
-  const out = lines.join(eol);
-  // A new file's hunk does not carry the final newline; files end with one.
-  return original === '' && out !== '' ? out + eol : out;
+  let out = lines.join(eol);
+  // The final newline is not a line of its own, so a hunk that adds or removes it says so in eof.
+  const eofChange = chosen.find(h => h.eof)?.eof;
+  if (original === '') return out !== '' && eofChange !== 'remove' ? out + eol : out;
+  if (eofChange === 'add' && !out.endsWith(eol)) out += eol;
+  if (eofChange === 'remove' && out.endsWith(eol)) out = out.slice(0, -eol.length);
+  return out;
 }
 
 export interface FileProposal {
