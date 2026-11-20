@@ -49,7 +49,11 @@ APP="$(ls -d "$REPO"/.vscode-test/vscode-darwin-*/Visual\ Studio\ Code.app | tai
 CODE="$APP/Contents/MacOS/Code"
 "$APP/Contents/Resources/app/bin/code" --user-data-dir="$U" --extensions-dir="$X" --install-extension "$OUT/countersign.vsix" >/dev/null 2>&1
 FL="$WORK/flask-3.1.3"
-"$CODE" --user-data-dir="$U" --extensions-dir="$X" --disable-workspace-trust "$FL" >/dev/null 2>&1 &
+# Keep painting when another window covers this one: Chromium otherwise stops drawing occluded
+# windows, and the capture freezes on the last frame.
+"$CODE" --user-data-dir="$U" --extensions-dir="$X" --disable-workspace-trust \
+  --disable-renderer-backgrounding --disable-backgrounding-occluded-windows --disable-background-timer-throttling \
+  "$FL" >/dev/null 2>&1 &
 for i in $(seq 1 60); do [ -f "$D/log.txt" ] && break; echo '{"do":"wait","ms":1}' >> "$D/steps.jsonl"; sleep 1; done
 [ -f "$D/log.txt" ] || { echo "driver did not start"; exit 1; }
 sleep 3
