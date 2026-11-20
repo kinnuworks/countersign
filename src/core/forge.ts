@@ -115,7 +115,8 @@ export class Forge {
   }
 
   sessionUrl(sessionId: string) {
-    return `${this.baseUrl.replace(/\/$/, '')}/sessions/${sessionId}`;
+    // TrueForge's session inspector: turns, tool calls, sub-agents and approvals on one timeline.
+    return `${this.baseUrl.replace(/\/$/, '')}/sessions?view=sessions&sessionId=${encodeURIComponent(sessionId)}`;
   }
 
   private async api(method: string, path: string, body?: unknown) {

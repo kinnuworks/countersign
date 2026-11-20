@@ -2,7 +2,7 @@
 
 ## 1. Team
 
-Team Kinnu (Techfest Team ID TM-732F269AC17). Dhiraj Kavuri, {{COLLEGE_OR_EMPLOYER}}, GitHub {{GITHUB_HANDLE}}.
+Team Kinnu (Techfest Team ID TM-732F269AC17). Dhiraj Kavuri, {{COLLEGE_OR_EMPLOYER}}, GitHub @kinnuworks.
 
 ## 2. Starting point
 

@@ -30,8 +30,10 @@ for line in open(f'{rec}/drv/log.txt'):
         steps.append((cur[0], ts(parts[0]), cur[1]))
         cur = None
 
-first = next(s for s in steps if s[2].get('do') == 'focusPanel')
-t0 = first[0] - 0.3  # the recorder starts about 0.3 s before the first scripted step
+try:  # zero of raw.mov: the first recorder segment's start (scripts/assemble-rec.py)
+    t0 = json.load(open(f'{rec}/raw.json'))['start']
+except FileNotFoundError:  # older takes: the recorder started about 0.3 s before the first step
+    t0 = next(s for s in steps if s[2].get('do') == 'focusPanel')[0] - 0.3
 dur = float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f'{rec}/raw.mov']).decode().strip())
 
 cuts = []
@@ -52,7 +54,7 @@ for a, b in cuts:
     print(f'  cut {a:7.1f} - {b:7.1f}  ({b - a:.1f}s)')
 
 sel = '+'.join(f'between(t,{a:.3f},{b:.3f})' for a, b in keepsegs)
-vf = f"select='{sel}',setpts=N/FRAME_RATE/TB,scale=1920:-2:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0x0b0f17"
+vf = f"select='{sel}',setpts=N/FRAME_RATE/TB,scale=1920:1080:force_original_aspect_ratio=decrease:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0x0b0f17"
 subprocess.check_call(['ffmpeg', '-v', 'error', '-y', '-i', f'{rec}/raw.mov', '-vf', vf, '-r', '30', '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', '-an', out])
 # The timeline map (raw time -> final time) for captions and the scorecard.
 with open(f'{rec}/timeline.json', 'w') as f:
