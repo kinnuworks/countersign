@@ -129,6 +129,21 @@ function html(n: string): string {
   .actions button { min-height: 28px; }
   header::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--signal); transform-origin: left; transform: scaleX(0); opacity: 0; }
   body.running header::after { opacity: 1; animation: run 1.6s ease-in-out infinite; }
+  /* Once a run has started, the transcript is the point: the header and composer shrink so the
+     context, review and tool cards get most of the sidebar's height. */
+  body:has(#log > :not(.empty)) header { padding: 8px 0 8px; }
+  body:has(#log > :not(.empty)) header:not(.offline) .eyebrow { display: none; }
+  body:has(#log > :not(.empty)) .top { margin: 0 0 6px; }
+  body:has(#log > :not(.empty)) .wordmark { font-size: var(--fs-b); }
+  body:has(#log > :not(.empty)) .top button.big { min-height: 24px; }
+  body:has(#log > :not(.empty)) .chain { line-height: 1.7; font-size: 11px; }
+  body:has(#log > :not(.empty)) .chain .m { font-size: 11px; padding: 0 4px; }
+  body:has(#log > :not(.empty)) .actions { margin-top: 6px; gap: 6px; flex-wrap: nowrap; }
+  body:has(#log > :not(.empty)) .actions button { min-height: 22px; font-size: 11px; padding: 0 8px; }
+  body:has(#log > :not(.empty)) { padding-bottom: 112px; }
+  body:has(#log > :not(.empty)) #hint { display: none; }
+  body:has(#log > :not(.empty)) .send-row { justify-content: flex-end; margin-top: 6px; }
+  body:has(#log > :not(.empty)) #input { min-height: 0; height: 52px; }
   @keyframes run { 0% { transform: scaleX(0); } 60% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { body.running header::after { animation: none; transform: scaleX(1); } }
 
