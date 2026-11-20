@@ -63,6 +63,13 @@ export async function activate(ctx: vscode.ExtensionContext) {
       await ensure(ctx);
     }),
     { dispose: () => void cs?.stop() },
+    // A changed model chain applies to the next run at once, without a reconnect.
+    vscode.workspace.onDidChangeConfiguration(async e => {
+      if (!e.affectsConfiguration('countersign.models') || !cs) return;
+      const setting = cfg().get<string[]>('models') ?? [];
+      cs.chain = setting.length ? setting : (await modelsConfig(ctx)).chain;
+      panel.post({ type: 'status', kind: 'info', text: `Model chain: ${cs.chain.join(' → ')}` });
+    }),
   );
   void vscode.commands.executeCommand('setContext', 'countersign.running', false);
   if (folder) void ensure(ctx).catch(() => undefined);
