@@ -24,7 +24,7 @@ It was built for the TrueFoundry Forge-a-thon, whose three fixed tasks on pallet
 
 ## Try it
 
-You need Node 22 or 24, VS Code 1.95+, git, and an API key for a model provider (or [Ollama](https://ollama.com) for a free local model). For the Flask tasks: Python 3.12 and [uv](https://docs.astral.sh/uv/).
+You need Node 22 or 24, VS Code 1.95+, git, and an API key for a model provider (or [Ollama](https://ollama.com) for a free local model). With Ollama, give the model a 32k context window first, since the 8k default is too small for an edit prompt: `printf 'FROM gemma4:e4b-it-qat\nPARAMETER num_ctx 32768\n' > Modelfile && ollama create gemma4-e4b-32k -f Modelfile` (the example config points at `gemma4-e4b-32k`). For the Flask tasks: Python 3.12 and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 git clone https://github.com/kinnuworks/countersign && cd countersign
@@ -121,7 +121,7 @@ Evidence, stated plainly: no real users yet; it was built for this hackathon. In
 
 > **Claim:** the fixed tasks pass on more than one model, headless, with the checks the video uses.
 > **Evidence type:** Our own break test (we tried to make it fail), not real users.
-> **Result** (`evidence/results/matrix.csv`): Claude Sonnet 5.5 passes A and B (B changed 5 files); Claude Haiku 5.5 passes A and B (3 files); Haiku through the OpenAI-compatible endpoint passes A; gemma4 e4b (local, Ollama) fails A.
+> **Result** (`evidence/results/matrix.csv`): Claude Sonnet 5.5 passes A and B (B changed 5 files); Claude Haiku 5.5 passes A and B (3 files); Haiku through the OpenAI-compatible endpoint passes A; gemma4 e4b (local, Ollama) passes A in 335 s once Ollama's context window is raised to 32k tokens (it failed at the 8k default: the prompt and the edit did not fit).
 > **Rerun:** `scripts/matrix.sh "<model> ..."`. **Limits:** one run per model and task.
 
 Limits, in numbers: zero real users. The back-test's 95% interval on the gain is 0.025 to 0.228, so the size of the gain is uncertain; the data is Flask's own history from 2021 to 2026, one Python project, with commit messages standing in for requests. The next real test is the same replay on a second Python project and on real typed requests; the claim would change if the paired difference's interval included zero there.
@@ -130,7 +130,7 @@ Limits, in numbers: zero real users. The back-test's 95% interval on the gain is
 
 - The extension is not on the Marketplace (out of scope); load it with F5 or the `.vsix`.
 - TrueForge allows one native Anthropic provider, so the example chain's fallback is Claude Haiku through Anthropic's OpenAI-compatible endpoint, registered as a separate custom provider. A broken native provider then still leaves a working model. For an invalid key instead of an unreachable endpoint: `npm run setup -- --break-key anthropic`.
-- A small local model (gemma4 e4b on Ollama) did not finish Task A on our Mac: its output was cut off after about 3 minutes (see the model matrix below). Larger local models should do better; we did not test them.
+- Small local models are slow. gemma4 e4b on Ollama passes Task A but takes about 5.5 minutes on our Mac, and needs Ollama's context window raised from its 8k default (below). We have not finished Task B on it.
 - Retrieval understands Python structure best; other languages are chunked by line windows.
 - A rejected hunk is not re-proposed automatically; the model is told, and you can ask again.
 
