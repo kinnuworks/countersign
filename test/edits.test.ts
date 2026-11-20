@@ -65,3 +65,25 @@ test('a new file keeps its final newline', () => {
   const hunks = computeHunks('n.py', '', 'x\ny\n');
   assert.equal(applyHunks('', hunks, new Set(hunks.map(h => h.id))), 'x\ny\n');
 });
+
+test('a change to the end-of-file newline survives partial acceptance', () => {
+  // Adding a final newline: accepting only that hunk adds it; accepting nothing leaves it off.
+  const noNl = 'a\nb\nc\nd\ne\nf';
+  const addNl = 'A\nb\nc\nd\ne\nf\n';
+  const hs = computeHunks('x.txt', noNl, addNl);
+  assert.equal(hs.length, 2);
+  assert.equal(applyHunks(noNl, hs, new Set([hs[1].id])), 'a\nb\nc\nd\ne\nf\n');
+  assert.equal(applyHunks(noNl, hs, new Set([hs[0].id])), 'A\nb\nc\nd\ne\nf');
+  assert.equal(applyHunks(noNl, hs, new Set(hs.map(h => h.id))), addNl);
+  assert.equal(applyHunks(noNl, hs, new Set()), noNl);
+  // The smallest case, and the reverse (removing the final newline), in LF and CRLF.
+  const one = computeHunks('y.txt', 'a\nb', 'a\nb\n');
+  assert.equal(applyHunks('a\nb', one, new Set(one.map(h => h.id))), 'a\nb\n');
+  const rm = computeHunks('z.txt', 'a\nb\n', 'a\nb');
+  assert.equal(applyHunks('a\nb\n', rm, new Set(rm.map(h => h.id))), 'a\nb');
+  const crlf = computeHunks('w.txt', 'a\r\nb', 'a\r\nb\r\n');
+  assert.equal(applyHunks('a\r\nb', crlf, new Set(crlf.map(h => h.id))), 'a\r\nb\r\n');
+  // A new file written without a final newline keeps it that way.
+  const fresh = computeHunks('n.txt', '', 'x\ny');
+  assert.equal(applyHunks('', fresh, new Set(fresh.map(h => h.id))), 'x\ny');
+});
