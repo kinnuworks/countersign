@@ -87,3 +87,33 @@ test('a change to the end-of-file newline survives partial acceptance', () => {
   const fresh = computeHunks('n.txt', '', 'x\ny');
   assert.equal(applyHunks('', fresh, new Set(fresh.map(h => h.id))), 'x\ny');
 });
+
+test('a final-newline hunk accepted alone keeps a real blank line above it', () => {
+  const original = 'a\nb\n\n  x';
+  const proposed = 'b\n\n';
+  const hs = computeHunks('t.txt', original, proposed);
+  assert.equal(hs.length, 2);
+  assert.equal(applyHunks(original, hs, new Set([hs[1].id])), 'a\nb\n\n');
+  assert.equal(applyHunks(original, hs, new Set([hs[0].id])), 'b\n\n  x');
+});
+
+test('fuzz: accepting every hunk gives the proposal, accepting none gives the original', () => {
+  let seed = 7;
+  const rnd = (n: number) => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n; };
+  const words = ['a', 'b', '', '  x', 'c', ''];
+  const make = () => {
+    const n = rnd(6);
+    const lines = Array.from({ length: n }, () => words[rnd(words.length)]);
+    const eol = rnd(4) === 0 ? '\r\n' : '\n';
+    return { text: lines.join(eol) + (n > 0 && rnd(2) ? eol : ''), eol };
+  };
+  for (let i = 0; i < 3000; i++) {
+    const { text: original, eol } = make();
+    let proposed = make().text;
+    if (original.includes('\r\n') || eol === '\r\n') proposed = proposed.replace(/\r?\n/g, original.includes('\r\n') ? '\r\n' : '\n');
+    if (original === '' && proposed === '') continue;
+    const hs = computeHunks('f.txt', original, proposed);
+    assert.equal(applyHunks(original, hs, new Set(hs.map(h => h.id))), proposed, `all: ${JSON.stringify([original, proposed])}`);
+    assert.equal(applyHunks(original, hs, new Set()), original, `none: ${JSON.stringify([original, proposed])}`);
+  }
+});

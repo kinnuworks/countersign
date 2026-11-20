@@ -109,3 +109,10 @@ test('deleting through a symlinked directory cannot remove a file outside the wo
   await assert.rejects(() => ws.deleteFile('link/keep.txt'));
   assert.ok(existsSync(path.join(outside, 'keep.txt')), 'file outside the workspace still exists');
 });
+
+test('a root-level file whose name starts with two dots is inside the workspace', () => {
+  assert.equal(safeRel('/repo', '..foo.txt'), '..foo.txt');
+  assert.equal(safeRel('/repo', 'dir/..bar'), 'dir/..bar');
+  assert.throws(() => safeRel('/repo', '../foo.txt'), /outside the workspace/);
+  assert.throws(() => safeRel('/repo', '..'), /outside the workspace/);
+});
