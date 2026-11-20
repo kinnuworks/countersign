@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { applyHunks, applySearchReplace, computeHunks } from '../src/core/edits';
+import { applyPatch, structuredPatch } from 'diff';
 
 const original = ['def a():', '    return 1', '', '', 'def b():', '    return 2', '', '', 'def c():', '    return 3', ''].join('\n');
 
@@ -109,11 +110,33 @@ test('fuzz: accepting every hunk gives the proposal, accepting none gives the or
   };
   for (let i = 0; i < 3000; i++) {
     const { text: original, eol } = make();
-    let proposed = make().text;
-    if (original.includes('\r\n') || eol === '\r\n') proposed = proposed.replace(/\r?\n/g, original.includes('\r\n') ? '\r\n' : '\n');
+    // Proposals keep the file's line endings (applySearchReplace does), so use the original's style.
+    const style = original.includes('\r\n') ? '\r\n' : original.includes('\n') ? '\n' : eol;
+    const proposed = make().text.replace(/\r?\n/g, style);
     if (original === '' && proposed === '') continue;
     const hs = computeHunks('f.txt', original, proposed);
     assert.equal(applyHunks(original, hs, new Set(hs.map(h => h.id))), proposed, `all: ${JSON.stringify([original, proposed])}`);
     assert.equal(applyHunks(original, hs, new Set()), original, `none: ${JSON.stringify([original, proposed])}`);
   }
+});
+
+test('fuzz: any one accepted hunk matches jsdiff applying that hunk alone', () => {
+  let seed = 11;
+  const rnd = (n: number) => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n; };
+  const words = ['a', 'b', '', '  x', 'c', 'd', ''];
+  const make = () => { const n = 1 + rnd(7); return Array.from({ length: n }, () => words[rnd(words.length)]).join('\n') + (rnd(2) ? '\n' : ''); };
+  let compared = 0;
+  for (let i = 0; i < 3000; i++) {
+    const original = make();
+    const proposed = make();
+    const patch = structuredPatch('f', 'f', original, proposed, '', '', { context: 0 });
+    const hs = computeHunks('f', original, proposed);
+    hs.forEach((h, k) => {
+      const expected = applyPatch(original, { ...patch, hunks: [patch.hunks[k]] });
+      if (expected === false) return; // jsdiff cannot apply this hunk alone; nothing to compare
+      compared++;
+      assert.equal(applyHunks(original, hs, new Set([h.id])), expected, JSON.stringify([original, proposed, k]));
+    });
+  }
+  assert.ok(compared > 1000, `only ${compared} cases compared`);
 });
