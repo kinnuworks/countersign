@@ -59,7 +59,7 @@ Switching models: TrueForge Settings → Models (or `npm run setup` from `counte
 
 ## 6. Scorecard
 
-Timestamps refer to the demo video, https://youtu.be/qeQasmz8hCE (3:57).
+Timestamps refer to the demo video, https://youtu.be/91zwHzQNPgo (3:58).
 
 | Criterion | Video | Claim |
 |---|---|---|
@@ -70,7 +70,7 @@ Timestamps refer to the demo video, https://youtu.be/qeQasmz8hCE (3:57).
 | B2 Diff safety | 0:28, 3:25 | per-hunk accept/reject (a rejected hunk never reaches disk); "Undo last change" restores the file, `git status` clean |
 | B3 Resilience | 2:54 | TrueForge's Anthropic provider pointed at a dead address: 2 retries with backoff, then automatic fallback; no files changed before accept |
 | B4 TrueForge depth | 2:42 | TrueForge's session view for Task B: 1 turn, 25 tool calls, 1 sub-agent, approval pauses on the timeline; MCP editor tools; approvals drive the review |
-| C1 Video | 0:00-3:57 | Tasks A, B, C in order, each verified in the terminal on screen |
+| C1 Video | 0:00-3:58 | Tasks A, B, C in order, each verified in the terminal on screen |
 | C2 Write-up | this document | architecture, context strategy and its measured result, model costs, trade-offs, limitations |
 
 ## 7. Tools used
