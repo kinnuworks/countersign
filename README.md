@@ -6,16 +6,17 @@ A coding agent for VS Code. You ask for a change; it finds the files itself and 
 
 ![Task A: an inline edit on Flask arrives as two hunks; each is accepted on its own, in the editor and in the panel](media/countersign-task-a.gif)
 
-What the [3:18 demo video](https://youtu.be/1mb-7CJMMH8) shows, on pallets/flask 3.1.3, each step checked in the terminal on screen:
+What the [3:57 demo video](https://youtu.be/qeQasmz8hCE) shows, on pallets/flask 3.1.3, each step checked in the terminal on screen:
 
 | Time | What you see |
 |---|---|
 | 0:05 | **Task A, inline edit.** `Cmd+Alt+K` on `get_debug_flag`; two hunks, each accepted on its own; `FLASK_DEBUG=off` then prints `False` |
-| 0:27 | **Undo.** "Undo last change" restores the file; `git status` is clean |
-| 0:32 | **Task B, agent mode.** One request, no files named. The Context card (0:39) shows 9,653 of 10,000 tokens used and why each file was chosen; a context-scout subagent explores; 5 files arrive as a per-hunk review; `63 passed`; `flask config` prints masked JSON |
-| 2:20 | **TrueForge session** for Task B: 1 turn, 24 tool calls, 1 sub-agent, approval pauses on the timeline |
-| 2:32 | **Task C, model failure.** First model unreachable: 2 retries with backoff (0.8 s, 1.6 s), then the next model takes over with no click; `git status` shows no files changed before accept |
-| 3:03 | **Stop** mid-answer: the TrueForge turn is cancelled and `git status` stays clean |
+| 0:28 | **Undo.** "Undo last change" restores the file; `git status` is clean |
+| 0:34 | **Task B, agent mode.** One request, no files named. The Context card (0:40) shows 9,653 of 10,000 tokens used and why each file was chosen; a context-scout subagent explores; 5 files arrive as a per-hunk review (2:25); `61 passed` (2:34); `flask config` prints masked JSON (2:37) |
+| 2:42 | **TrueForge session** for Task B: 1 turn, 25 tool calls, 1 sub-agent, approval pauses on the timeline |
+| 2:54 | **Task C, model failure.** First model unreachable: 2 retries with backoff (0.8 s, 1.6 s), then the next model takes over with no click; `git status` shows no files changed before accept |
+| 3:25 | **Per-hunk reject.** On `get_load_dotenv` the docstring hunk is rejected and the code hunk accepted: `git diff` shows only the code line, and the agent is told which hunk was rejected |
+| 3:45 | **Stop mid-run.** Esc while the model works on an edit: the panel reports how long the cancel took and `git status` stays clean |
 
 **Measured, back-test on public data (pallets/flask history, 2021-2026):** for 21 of 79 held-out Flask commits, every file the commit edited landed in Countersign's 10,000-token context pack, against 11 of 79 for whole-file BM25 as used in SWE-bench (paired difference +0.127, 95% interval 0.025 to 0.228). No real users yet. Details and rerun command under [Evidence](#evidence).
 
@@ -97,6 +98,7 @@ It packs the best chunks, with each file's outline and the reason it was chosen,
 First get Flask with its full history, which the retriever tests, the end-to-end script and the back-test read: `git clone https://github.com/pallets/flask .ref/flask && git -C .ref/flask checkout -q 3.1.3` (or point `FLASK_DIR` at a checkout you have). Without it, the two retriever tests skip and say why.
 
 - `./check.sh`: typecheck, unit tests, and `scripts/e2e.sh`, which starts a real VS Code with the extension against your running TrueForge on a fresh Flask 3.1.3. It runs Task A (review, accept, verify), undo, Stop in the middle of an agent run, and Task C with an unreachable first model.
+- Hunk handling is fuzz-tested (`test/edits.test.ts`): over 3,000 random file pairs, accepting every hunk gives exactly the proposal and accepting none gives the original, and over another 3,000 any one accepted hunk gives the same file as jsdiff applying that hunk alone (final newlines, blank lines and CRLF included).
 - `node out/harness.js --repo <flask> --task B`: the same core, headless, with an auto-reviewer.
 - `node out/replay.js <flask-git-dir>`: the retrieval back-test below.
 

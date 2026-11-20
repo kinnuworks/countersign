@@ -42,6 +42,21 @@ for a, b, s in steps:
         lo, hi = a - t0 + keep, b - t0 - keep
         if hi - lo > 1.0:
             cuts.append((lo, hi))
+# Our own pauses (wait steps, never model time) are capped so the film fits the 4-minute limit:
+# --cap-wait seconds for a hold, longer for the TrueForge session view and the masked-JSON output.
+cap = float(sys.argv[sys.argv.index('--cap-wait') + 1]) if '--cap-wait' in sys.argv else None
+if cap is not None:
+    for i, (a, b, s) in enumerate(steps):
+        if s.get('do') != 'wait':
+            continue
+        prev = steps[i - 1][2] if i else {}
+        limit = cap
+        if prev.get('do') == 'command' and prev.get('id') == 'countersign.openSession':
+            limit = 12.0
+        elif prev.get('do') == 'terminal' and 'flask --app app config' in prev.get('text', ''):
+            limit = cap + 1.0
+        if b - a > limit + 0.2:
+            cuts.append((a - t0 + limit, b - t0))
 keepsegs, pos = [], 0.0
 for lo, hi in sorted(cuts):
     if lo > pos:

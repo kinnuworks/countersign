@@ -59,18 +59,18 @@ Switching models: TrueForge Settings → Models (or `npm run setup` from `counte
 
 ## 6. Scorecard
 
-Timestamps refer to the demo video, https://youtu.be/1mb-7CJMMH8 (3:18).
+Timestamps refer to the demo video, https://youtu.be/qeQasmz8hCE (3:57).
 
 | Criterion | Video | Claim |
 |---|---|---|
-| A1 Inline edit | 0:05 | `Cmd+Alt+K` on `get_debug_flag`; the diff opens with ✓/✗ on each of its 2 hunks (CodeLens and panel); verified `False` |
-| A2 Agent mode | 0:32 | one request, no files named; the agent found and edited `cli.py`, `test_cli.py`, `docs/cli.rst` (+ changelog/API docs) |
-| A3 Streaming and cancellation | 3:03 | tokens and drafts stream live; Stop (Esc) cancels the TrueForge turn at once; `git status` clean |
-| B1 Context assembly | 0:39 | Context card: 10k-token budget bar, each chosen file with its reason, files left out; context-scout subagent |
-| B2 Diff safety | 0:27 | per-hunk accept/reject; "Undo last change" restores the file, `git status` clean |
-| B3 Resilience | 2:32 | TrueForge's Anthropic provider pointed at a dead address: 2 retries with backoff, then automatic fallback; no files changed before accept |
-| B4 TrueForge depth | 2:20 | TrueForge's session view for Task B: 1 turn, 24 tool calls, 1 sub-agent, approval pauses on the timeline; MCP editor tools; approvals drive the review |
-| C1 Video | 0:00-3:18 | Tasks A, B, C in order, each verified in the terminal on screen |
+| A1 Inline edit | 0:05, 3:25 | `Cmd+Alt+K` on `get_debug_flag`; the diff opens with ✓/✗ on each of its 2 hunks (CodeLens and panel); verified `False`. At 3:25 one hunk is rejected and only the other lands |
+| A2 Agent mode | 0:34 | one request, no files named; the agent found and edited `cli.py`, `test_cli.py`, `docs/cli.rst` (+ changelog/API docs) |
+| A3 Streaming and cancellation | 3:45 | tokens and drafts stream live; Stop (Esc) during an edit request cancels the TrueForge turn, the panel shows the cancel time, `git status` clean |
+| B1 Context assembly | 0:40 | Context card: 10k-token budget bar, each chosen file with its reason, files left out; context-scout subagent |
+| B2 Diff safety | 0:28, 3:25 | per-hunk accept/reject (a rejected hunk never reaches disk); "Undo last change" restores the file, `git status` clean |
+| B3 Resilience | 2:54 | TrueForge's Anthropic provider pointed at a dead address: 2 retries with backoff, then automatic fallback; no files changed before accept |
+| B4 TrueForge depth | 2:42 | TrueForge's session view for Task B: 1 turn, 25 tool calls, 1 sub-agent, approval pauses on the timeline; MCP editor tools; approvals drive the review |
+| C1 Video | 0:00-3:57 | Tasks A, B, C in order, each verified in the terminal on screen |
 | C2 Write-up | this document | architecture, context strategy and its measured result, model costs, trade-offs, limitations |
 
 ## 7. Tools used

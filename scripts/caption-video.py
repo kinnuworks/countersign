@@ -50,7 +50,7 @@ sections = [
     (t_sess, t_c, 'Task B · TrueForge session', 'the turns and tool calls behind that run'),
     (t_c, t_rej, 'Task C · Model failure', 'first model unreachable: 2 retries with backoff, then the next model takes over'),
     (t_rej, t_stop, 'Per-hunk reject', 'reject the docstring hunk, accept the code hunk: only the accepted hunk lands'),
-    (t_stop, None, 'Stop mid-edit', 'Esc while the model is still writing the edit; nothing reaches disk'),
+    (t_stop, None, 'Stop mid-run', 'Esc while the model works on an edit: the TrueForge turn is cancelled and nothing reaches disk'),
 ]
 
 caps = os.path.join(rec, 'caps')
