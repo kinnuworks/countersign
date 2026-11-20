@@ -4,7 +4,7 @@ import { ApprovalBook } from '../src/core/tools';
 import { classifyError } from '../src/core/forge';
 import { ChangeJournal } from '../src/core/journal';
 import { NodeWorkspace, safeRel, type Workspace } from '../src/core/workspace';
-import { commandEnv } from '../src/core/tools';
+import { commandEnv, searchCode } from '../src/core/tools';
 import { existsSync, mkdtempSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
@@ -120,4 +120,21 @@ test('a root-level file whose name starts with two dots is inside the workspace'
 test('a trailing space or dot cannot sneak a secret or git path past the guard', () => {
   for (const p of ['.env ', '.env.', '.git /config', 'dir./x', 'x/.env  ']) assert.throws(() => safeRel('/repo', p), /not allowed|off limits/, p);
   assert.equal(safeRel('/repo', 'docs/a.b.txt'), 'docs/a.b.txt');
+});
+
+test('secret env files stay out of file lists and code search, even untracked and not ignored', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'cs-sec-'));
+  const { execFileSync } = await import('node:child_process');
+  execFileSync('git', ['init', '-q'], { cwd: root });
+  writeFileSync(path.join(root, '.env'), 'SECRET_KEY=hunter2topsecret\n');
+  writeFileSync(path.join(root, '.env.local'), 'SECRET_KEY=localsecret\n');
+  writeFileSync(path.join(root, '.env.example'), 'SECRET_KEY=changeme\n');
+  writeFileSync(path.join(root, 'app.py'), 'SECRET_KEY = "dev"\n');
+  const ws = new NodeWorkspace(root);
+  const files = await ws.listFiles();
+  assert.ok(!files.includes('.env') && !files.includes('.env.local'), files.join(','));
+  assert.ok(files.includes('app.py') && files.includes('.env.example'));
+  const hits = await searchCode(root, 'SECRET_KEY');
+  assert.ok(!hits.some(l => l.includes('hunter2') || l.includes('localsecret')), hits.join('\n'));
+  assert.ok(hits.some(l => l.startsWith('app.py:1:')), hits.join('\n'));
 });
