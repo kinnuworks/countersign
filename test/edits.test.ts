@@ -140,3 +140,12 @@ test('fuzz: any one accepted hunk matches jsdiff applying that hunk alone', () =
   }
   assert.ok(compared > 1000, `only ${compared} cases compared`);
 });
+
+test('overlapping matches count as several places, so the edit is refused', () => {
+  const r1 = applySearchReplace('aaa', [{ old_text: 'aa', new_text: 'X' }]);
+  assert.equal(r1.ok, false);
+  assert.match(r1.errors[0], /matches 2 places/);
+  const r2 = applySearchReplace('a\n\n\nb', [{ old_text: '\n\n', new_text: '\n' }]);
+  assert.equal(r2.ok, false);
+  assert.equal(applySearchReplace('abab', [{ old_text: 'ba', new_text: 'X' }]).text, 'aXb');
+});

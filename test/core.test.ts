@@ -116,3 +116,8 @@ test('a root-level file whose name starts with two dots is inside the workspace'
   assert.throws(() => safeRel('/repo', '../foo.txt'), /outside the workspace/);
   assert.throws(() => safeRel('/repo', '..'), /outside the workspace/);
 });
+
+test('a trailing space or dot cannot sneak a secret or git path past the guard', () => {
+  for (const p of ['.env ', '.env.', '.git /config', 'dir./x', 'x/.env  ']) assert.throws(() => safeRel('/repo', p), /not allowed|off limits/, p);
+  assert.equal(safeRel('/repo', 'docs/a.b.txt'), 'docs/a.b.txt');
+});
