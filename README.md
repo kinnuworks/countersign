@@ -8,6 +8,8 @@ A coding agent for VS Code. You ask for a change; it finds the files itself and 
 
 The full demo (Tasks A, B and C on pallets/flask 3.1.3, 3:17) is linked from the submission.
 
+**Measured, back-test on public data (pallets/flask history, 2021-2026):** for 21 of 79 held-out Flask commits, every file the commit edited landed in Countersign's 10,000-token context pack, against 11 of 79 for whole-file BM25 as used in SWE-bench (paired difference +0.127, 95% interval 0.025 to 0.228). No real users yet. Details and rerun command under [Evidence](#evidence).
+
 It was built for the TrueFoundry Forge-a-thon, whose three fixed tasks on pallets/flask are described [below](#the-three-fixed-tasks-palletsflask-313).
 
 ## Try it
@@ -108,6 +110,8 @@ Evidence, stated plainly: no real users yet; it was built for this hackathon. In
 > **Evidence type:** Our own break test (we tried to make it fail), not real users.
 > **Result** (`evidence/results/matrix.csv`): Claude Sonnet 5.5 passes A and B (B changed 5 files); Claude Haiku 5.5 passes A and B (3 files); Haiku through the OpenAI-compatible endpoint passes A; gemma4 e4b (local, Ollama) fails A.
 > **Rerun:** `scripts/matrix.sh "<model> ..."`. **Limits:** one run per model and task.
+
+Limits, in numbers: zero real users. The back-test's 95% interval on the gain is 0.025 to 0.228, so the size of the gain is uncertain; the data is Flask's own history from 2021 to 2026, one Python project, with commit messages standing in for requests. The next real test is the same replay on a second Python project and on real typed requests; the claim would change if the paired difference's interval included zero there.
 
 ## What doesn't work yet
 
