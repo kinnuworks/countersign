@@ -47,6 +47,8 @@ FL="$WORK/flask-3.1.3"
 for i in $(seq 1 60); do [ -f "$D/log.txt" ] && break; echo '{"do":"wait","ms":1}' >> "$D/steps.jsonl"; sleep 1; done
 [ -f "$D/log.txt" ] || { echo "driver did not start"; exit 1; }
 sleep 3
+# Keep the display awake: a sleeping or locked screen ends the capture and stalls the editor.
+caffeinate -d -i -w $$ &
 WINREC_TITLE="flask-3.1.3" tools/winrec 0 "$OUT/raw.mov" 30 2> "$OUT/winrec.log" &
 REC=$!
 sleep 1
