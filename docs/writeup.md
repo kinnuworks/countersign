@@ -50,7 +50,7 @@ Retrieval runs before the first model call and as a tool the agent can call agai
 | Claude Sonnet 5.5 (`anthropic/claude-sonnet-5-5`) | Anthropic API, configured in TrueForge's catalog provider | first in the chain; used in the video | Task B: ~220k input tokens (~165k cache reads, ~55k cache writes), ~9k output. Task A: ~7k input, ~1k output | Task B ~$0.24, Task A ~$0.014 |
 | Claude Haiku 5.5 (`anthropic-openai/claude-haiku-5-5`) | Anthropic's OpenAI-compatible endpoint, registered in TrueForge as a custom provider | fallback (Task C) | Task A: ~5k input, ~1k output | under $0.001 |
 | Claude Haiku 5.5 (`anthropic/claude-haiku-5-5`) | Anthropic API | tested (model matrix) | Task B: ~153k input (mostly cache), ~6k output | ~$0.01 |
-| gemma4 e4b (`ollama/gemma4-e4b`) | local, Ollama behind an OpenAI-compatible endpoint | tested (model matrix): fails Task A at Ollama's 8k default context; passes Task A in 335 s at 32k | n/a | $0 |
+| gemma4 e4b (`ollama/gemma4-e4b`) | local, Ollama behind an OpenAI-compatible endpoint | tested (model matrix): fails Task A at Ollama's 8k default context; passes Task A in 335 s at 32k; fails Task B | n/a | $0 |
 | `broken-endpoint/unreachable` | 127.0.0.1:9 (nothing listens) | Task C test provider | n/a | $0 |
 
 Prices used: Sonnet 5.5 $2 / $10 per million input / output tokens, $0.10 cache reads; Haiku 5.5 $0.10 / $0.50; cache writes priced at about 1.25 times input. Everything we ran through TrueForge by 03:00 IST on 20 November, development included (42 sessions), comes to under $2 at these prices.

@@ -7,3 +7,4 @@ date,model,task,status,seconds,check,detail
 2026-11-20,ollama/gemma4-e4b,B,not run,0,n/a,"stopped after Task A failed"
 2026-11-20,anthropic-openai/claude-haiku-5-5,A,done,7,pass,"off->False (harness run, via the OpenAI-compatible endpoint)"
 2026-11-20,ollama/gemma4-e4b,A,done,335,pass,"off->False; 1->True"
+2026-11-20,ollama/gemma4-e4b,B,error,1587,fail,"files=0; 58 passed in 0.90s; masked=no; in_help=0"
