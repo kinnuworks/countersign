@@ -5,7 +5,7 @@ import { classifyError } from '../src/core/forge';
 import { ChangeJournal } from '../src/core/journal';
 import { NodeWorkspace, safeRel, type Workspace } from '../src/core/workspace';
 import { commandEnv } from '../src/core/tools';
-import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 
@@ -90,4 +90,22 @@ test('edits sent as a JSON string match the same approval as an array', () => {
   const edits = [{ old_text: 'a', new_text: 'b' }];
   b.record('propose_edit', { path: 'x.py', edits: JSON.stringify(edits), explanation: 'e' }, { kind: 'write', path: 'x.py', finalText: 'b', before: 'a', accepted: 1, total: 1, rejectedNotes: [] });
   assert.equal(b.take('propose_edit', { path: 'x.py', edits, explanation: 'e' })?.kind, 'write');
+});
+
+test('secret and git paths are refused whatever their case (case-insensitive disks)', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'cs-case-'));
+  for (const p of ['.ENV', '.Env', 'app/.ENV.local', '.GIT/config', 'sub/.Git/HEAD']) {
+    assert.throws(() => safeRel(root, p), /off limits/, p);
+  }
+  assert.equal(safeRel(root, '.env.EXAMPLE'), '.env.EXAMPLE');
+});
+
+test('deleting through a symlinked directory cannot remove a file outside the workspace', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'cs-del-'));
+  const outside = mkdtempSync(path.join(tmpdir(), 'cs-out-'));
+  writeFileSync(path.join(outside, 'keep.txt'), 'keep');
+  symlinkSync(outside, path.join(root, 'link'));
+  const ws = new NodeWorkspace(root);
+  await assert.rejects(() => ws.deleteFile('link/keep.txt'));
+  assert.ok(existsSync(path.join(outside, 'keep.txt')), 'file outside the workspace still exists');
 });

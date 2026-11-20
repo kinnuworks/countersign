@@ -57,6 +57,7 @@ export class VscodeWorkspace implements Workspace {
   }
 
   async deleteFile(rel: string): Promise<void> {
+    await assertInside(this.root, safeRel(this.root, rel));
     const edit = new vscode.WorkspaceEdit();
     edit.deleteFile(this.uri(rel), { ignoreIfNotExists: true });
     await vscode.workspace.applyEdit(edit);

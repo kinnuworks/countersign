@@ -35,7 +35,8 @@ export function run(cmd: string, args: string[], cwd: string, timeoutMs = 20_000
 }
 
 /** Paths the agent may never touch: git internals and secret env files (examples are fine). */
-const FORBIDDEN = [/(^|\/)\.git(\/|$)/, /(^|\/)\.env$/, /(^|\/)\.env\.(?!example$|sample$|template$)[^/]+$/];
+// Case-insensitive: on macOS and Windows disks `.ENV` and `.GIT/` are the same files as `.env` and `.git/`.
+const FORBIDDEN = [/(^|\/)\.git(\/|$)/i, /(^|\/)\.env$/i, /(^|\/)\.env\.(?!example$|sample$|template$)[^/]+$/i];
 
 /** Rejects paths that escape the workspace (.., absolute paths), odd characters, and forbidden files. */
 export function safeRel(root: string, rel: string): string {
@@ -117,7 +118,9 @@ export class NodeWorkspace implements Workspace {
     await fs.writeFile(p, text, 'utf8');
   }
   async deleteFile(rel: string) {
-    await fs.rm(path.join(this.root, safeRel(this.root, rel)), { force: true });
+    const r = safeRel(this.root, rel);
+    await assertInside(this.root, r);
+    await fs.rm(path.join(this.root, r), { force: true });
   }
 }
 
