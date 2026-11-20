@@ -42,6 +42,8 @@ const FORBIDDEN = [/(^|\/)\.git(\/|$)/i, /(^|\/)\.env$/i, /(^|\/)\.env\.(?!examp
 export function safeRel(root: string, rel: string): string {
   if (typeof rel !== 'string' || !rel.trim() || /[\0-\x1f"'<>`]/.test(rel)) throw new Error(`path "${String(rel)}" is not allowed`);
   const cleaned = rel.replace(/^\.\/+/, '').replace(/\\/g, '/');
+  // Windows drops a trailing space or dot from a name, so '.env ' would open '.env'. Refuse them.
+  if (cleaned.split('/').some(seg => seg !== '.' && seg !== '..' && /[ .]$/.test(seg))) throw new Error(`path "${rel}" is not allowed`);
   const abs = path.resolve(root, cleaned);
   const back = path.relative(root, abs);
   if (back === '..' || back.startsWith('..' + path.sep) || path.isAbsolute(back) || back === '') {

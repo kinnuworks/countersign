@@ -45,7 +45,8 @@ function countOccurrences(haystack: string, needle: string): number {
   let i = haystack.indexOf(needle);
   while (i !== -1) {
     n++;
-    i = haystack.indexOf(needle, i + needle.length);
+    // Step one character, not one match: 'aa' occurs twice in 'aaa', and that must count as ambiguous.
+    i = haystack.indexOf(needle, i + 1);
   }
   return n;
 }
