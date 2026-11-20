@@ -39,6 +39,11 @@ export function run(cmd: string, args: string[], cwd: string, timeoutMs = 20_000
 const FORBIDDEN = [/(^|\/)\.git(\/|$)/i, /(^|\/)\.env$/i, /(^|\/)\.env\.(?!example$|sample$|template$)[^/]+$/i];
 
 /** Rejects paths that escape the workspace (.., absolute paths), odd characters, and forbidden files. */
+/** True for git internals and secret env files, which no tool may list, search or read. */
+export function isForbidden(rel: string): boolean {
+  return FORBIDDEN.some(r => r.test(rel));
+}
+
 export function safeRel(root: string, rel: string): string {
   if (typeof rel !== 'string' || !rel.trim() || /[\0-\x1f"'<>`]/.test(rel)) throw new Error(`path "${String(rel)}" is not allowed`);
   const cleaned = rel.replace(/^\.\/+/, '').replace(/\\/g, '/');
@@ -79,14 +84,14 @@ export async function assertInside(root: string, rel: string): Promise<void> {
 export async function listWorkspaceFiles(root: string): Promise<string[]> {
   const git = await run('git', ['ls-files', '--cached', '--others', '--exclude-standard'], root);
   if (git.code === 0 && git.stdout.trim()) {
-    return git.stdout.split('\n').map(s => s.trim()).filter(Boolean).sort();
+    return git.stdout.split('\n').map(s => s.trim()).filter(f => f && !isForbidden(f)).sort();
   }
   const out: string[] = [];
   async function walk(dir: string) {
     for (const ent of await fs.readdir(dir, { withFileTypes: true })) {
       if (ent.isDirectory()) {
         if (!SKIP_DIRS.has(ent.name) && !ent.name.startsWith('.')) await walk(path.join(dir, ent.name));
-      } else if (ent.isFile()) {
+      } else if (ent.isFile() && !isForbidden(path.relative(root, path.join(dir, ent.name)).split(path.sep).join('/'))) {
         out.push(path.relative(root, path.join(dir, ent.name)).split(path.sep).join('/'));
       }
     }

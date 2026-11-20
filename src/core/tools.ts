@@ -5,7 +5,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
 import type { Workspace } from './workspace';
-import { gitStatus, run, safeRel } from './workspace';
+import { gitStatus, isForbidden, run, safeRel } from './workspace';
 import type { Retriever, ContextPack } from './retriever';
 import type { ChangeJournal } from './journal';
 import { normalizeEdits } from './edits';
@@ -248,14 +248,13 @@ function editorServer(host: ToolHost): McpServer {
       annotations: { readOnlyHint: true, title: 'Search code' },
     },
     async ({ pattern, path_glob, case_sensitive }) => {
-      const args = ['grep', '-n', '-I', '-E', '--untracked'];
-      if (!case_sensitive) args.push('-i');
-      args.push('-e', pattern, '--');
-      if (path_glob) args.push(`:(glob)${path_glob}`);
-      const r = await run('git', args, host.ws.root);
-      const lines = r.stdout.split('\n').filter(Boolean);
+      let lines: string[];
+      try {
+        lines = await searchCode(host.ws.root, pattern, path_glob, case_sensitive);
+      } catch (e) {
+        return text(`search failed: ${(e as Error).message}`);
+      }
       act('search_code', { pattern }, `${lines.length} matches`);
-      if (r.code > 1) return text(`search failed: ${r.stderr.trim()}`);
       return text(lines.slice(0, 80).map(l => (l.length > 240 ? l.slice(0, 240) + '...' : l)).join('\n') + (lines.length > 80 ? `\n... ${lines.length - 80} more` : '') || 'no matches');
     },
   );
@@ -388,6 +387,23 @@ export interface ToolServer {
 }
 
 /** Serves both MCP servers on 127.0.0.1 with a per-launch bearer token. */
+/**
+ * git grep over tracked and untracked (not ignored) files, as file:line: text. Lines from git
+ * internals and secret env files are dropped, the same rule read_file applies.
+ */
+export async function searchCode(root: string, pattern: string, pathGlob?: string, caseSensitive?: boolean): Promise<string[]> {
+  const args = ['grep', '-n', '-I', '-E', '--untracked'];
+  if (!caseSensitive) args.push('-i');
+  args.push('-e', pattern, '--');
+  if (pathGlob) args.push(`:(glob)${pathGlob}`);
+  const r = await run('git', args, root);
+  if (r.code > 1) throw new Error(r.stderr.trim());
+  return r.stdout.split('\n').filter(l => {
+    const m = /^(.*?):\d+:/.exec(l);
+    return l && !(m && isForbidden(m[1]));
+  });
+}
+
 export async function startToolServer(host: ToolHost, port = 0): Promise<ToolServer> {
   const token = randomBytes(24).toString('hex');
   const srv = http.createServer(async (req, res) => {
