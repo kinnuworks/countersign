@@ -4,6 +4,8 @@ A coding agent for VS Code. You ask for a change; it finds the files itself and 
 
 **Why it needs TrueForge:** Countersign has no agent loop of its own. It runs on [TrueForge](https://github.com/truefoundry/trueforge), TrueFoundry's open-source agent harness, which you start locally with one `npx` command. TrueForge runs the model, the tool loop and the subagents; Countersign hands it the editor as tools, and each edit the agent wants to make reaches you as a TrueForge approval that opens as a review in the editor.
 
+**For judges:** the [write-up PDF](docs/writeup.pdf) has the timestamped scorecard for every criterion and the limitations; the agent definitions are [agent/countersign-coder.json](agent/countersign-coder.json) and [agent/countersign-inline.json](agent/countersign-inline.json); the example model setup is [countersign.models.example.json](countersign.models.example.json).
+
 ![Task A: an inline edit on Flask arrives as two hunks; each is accepted on its own, in the editor and in the panel](media/countersign-task-a.gif)
 
 What the [3:58 demo video](https://youtu.be/91zwHzQNPgo) (screen recording with voiceover and callouts) shows, on pallets/flask 3.1.3, each step checked in the terminal on screen:
