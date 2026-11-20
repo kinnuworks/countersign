@@ -12,6 +12,8 @@ import { startDriver } from './driver';
 let cs: Countersign | undefined;
 let starting: Promise<Countersign> | undefined;
 let current: AbortController | undefined;
+/** When Stop was pressed, so the panel can say how long the cancel took. */
+let stopAt: number | undefined;
 let lastSessionUrl: string | undefined;
 let panel: AgentPanel;
 let reviews: ReviewManager;
@@ -258,7 +260,8 @@ async function finish(result: RunResult, startedClean: string | null) {
   state.last = { status: result.status, model: result.model, attempts: result.attempts, error: result.error };
   const st = await instance.gitStatus();
   if (result.status === 'cancelled') {
-    panel.post({ type: 'status', kind: 'warn', text: 'Cancelled. The model stopped, open reviews were dropped, and no half-applied edits exist (writes only happen inside an approved, complete tool call).' });
+    const took = stopAt != null ? `Stopped ${Date.now() - stopAt} ms after you pressed Stop. ` : 'Cancelled. ';
+    panel.post({ type: 'status', kind: 'warn', text: `${took}The TrueForge turn is cancelled, open reviews were dropped, and no half-applied edits exist (writes only happen inside an approved, complete tool call).` });
   }
   if (result.status === 'error') panel.post({ type: 'status', kind: 'error', text: `Run failed: ${result.error}. Nothing was changed by the failed attempt.` });
   if (result.attempts.length > 1) panel.post({ type: 'status', kind: 'info', text: `Attempts: ${result.attempts.map(a => `${a.model} (${a.outcome.slice(0, 60)})`).join(' → ')}` });
@@ -283,6 +286,7 @@ async function agentRun(ctx: vscode.ExtensionContext, text: string) {
   const open = vscode.window.visibleTextEditors.map(e => vscode.workspace.asRelativePath(e.document.uri, false));
   panel.post({ type: 'user', text, mode: 'agent' });
   current = new AbortController();
+  stopAt = undefined;
   setRunning(true, 'agent');
   const before = await instance.gitStatus();
   try {
@@ -314,6 +318,7 @@ async function inlineEdit(ctx: vscode.ExtensionContext, given?: string) {
   panel.post({ type: 'user', text: `${rel}:${sel.start.line + 1}-${endLine} · ${instruction}`, mode: 'inline' });
   void panel.reveal();
   current = new AbortController();
+  stopAt = undefined;
   setRunning(true, 'inline edit');
   const before = await instance.gitStatus();
   try {
@@ -381,6 +386,7 @@ function askInstruction(where: string): Promise<string | undefined> {
 
 function cancelRun(reason: string) {
   if (!current) return;
+  stopAt = Date.now();
   panel.post({ type: 'status', kind: 'warn', text: `${reason}. Cancelling the TrueForge turn…` });
   reviews.cancel();
   current.abort();

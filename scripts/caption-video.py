@@ -38,7 +38,8 @@ t_undo = first(is_cmd('countersign.undo'), t_a)
 t_b = first(lambda s: s.get('do') == 'agent', t_undo)
 t_sess = first(is_cmd('countersign.openSession'), t_b)
 t_c = first(lambda s: s.get('do') == 'terminal' and 'break-endpoint' in s.get('text', ''), t_sess)
-t_stop = first(lambda s: s.get('do') == 'agent', t_c)
+t_rej = first(lambda s: s.get('do') == 'select' and s.get('symbol') == 'get_load_dotenv', t_c)
+t_stop = first(lambda s: s.get('do') == 'select' and s.get('symbol') == 'get_root_path', t_rej)
 end = sum(b - a for a, b in keep)
 
 sections = [
@@ -47,8 +48,9 @@ sections = [
     (t_undo, t_b, 'Undo', 'Undo last change restores the file'),
     (t_b, t_sess, 'Task B · Agent mode', 'one request, no files named; the agent picks them and says why'),
     (t_sess, t_c, 'Task B · TrueForge session', 'the turns and tool calls behind that run'),
-    (t_c, t_stop, 'Task C · Model failure', 'first model unreachable: 2 retries with backoff, then the next model takes over'),
-    (t_stop, None, 'Stop', 'Esc cancels the TrueForge turn; nothing half-applied'),
+    (t_c, t_rej, 'Task C · Model failure', 'first model unreachable: 2 retries with backoff, then the next model takes over'),
+    (t_rej, t_stop, 'Per-hunk reject', 'reject the docstring hunk, accept the code hunk: only the accepted hunk lands'),
+    (t_stop, None, 'Stop mid-edit', 'Esc while the model is still writing the edit; nothing reaches disk'),
 ]
 
 caps = os.path.join(rec, 'caps')

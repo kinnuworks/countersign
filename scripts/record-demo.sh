@@ -81,6 +81,8 @@ PY
 }
 TASK_A="Treat the values 'off' and 'n' as false as well, case-insensitively, and update the docstring to list every value that is treated as false."
 TASK_B='Add a new built-in CLI command flask config that prints the loaded application'"'"'s configuration as JSON, masking the values of any key containing SECRET, PASSWORD, TOKEN or KEY as \"***\". It must appear in flask --help, be covered by a test, and be documented alongside the other built-in commands.'
+TASK_REJ="Treat the values 'off' and 'n' as false here too, and update the docstring to say so."
+TASK_STOP="Add type hints to this function and rewrite its docstring in the NumPy style with a short example."
 VERIFY_A='FLASK_DEBUG=off python -c "from flask.helpers import get_debug_flag; print(get_debug_flag())"'
 j() { python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$1"; }
 
@@ -94,14 +96,14 @@ say '{"do":"select","path":"src/flask/helpers.py","symbol":"get_debug_flag"}' '{
     '{"do":"waitFor","what":"idle","timeoutMs":120000}' '{"do":"wait","ms":1500}' \
     '{"do":"command","id":"workbench.action.terminal.clear"}' "{\"do\":\"terminal\",\"text\":$(j "$VERIFY_A && git diff --stat")}" '{"do":"wait","ms":4000}'
 wait_log; mark "undo"
-say '{"do":"command","id":"countersign.undo"}' '{"do":"wait","ms":1500}' '{"do":"command","id":"workbench.action.terminal.clear"}' "{\"do\":\"terminal\",\"text\":$(j "git status --short && echo '(clean)'")}" '{"do":"wait","ms":3000}'
+say '{"do":"command","id":"countersign.undo"}' '{"do":"wait","ms":1500}' '{"do":"command","id":"workbench.action.terminal.clear"}' "{\"do\":\"terminal\",\"text\":$(j "git status --short && echo '(clean)'")}" '{"do":"wait","ms":4500}'
 wait_log; mark "task B"
 say '{"do":"command","id":"workbench.action.closeAllEditors"}' "{\"do\":\"agent\",\"text\":$(j "$TASK_B"),\"cps\":55}" \
     '{"do":"waitFor","what":"review","timeoutMs":400000}' '{"do":"wait","ms":5000}' \
     '{"do":"command","id":"countersign.acceptAll"}' '{"do":"finish","timeoutMs":600000}' '{"do":"wait","ms":2500}' \
     '{"do":"command","id":"workbench.action.terminal.clear"}' "{\"do\":\"terminal\",\"text\":$(j "python -m pytest tests/test_cli.py -q 2>&1 | tail -1; git diff --stat")}" '{"do":"wait","ms":5000}' \
     '{"do":"command","id":"workbench.action.terminal.clear"}' "{\"do\":\"terminal\",\"text\":$(j "cd ../app && flask --app app config | grep -E '\"(SECRET_KEY|DATABASE_PASSWORD|API_TOKEN|STRIPE_KEY|GREETING)\"'; flask --app app --help | grep -E '^  config'; cd ../flask-3.1.3")}" '{"do":"wait","ms":6000}' \
-    '{"do":"command","id":"workbench.action.closeSidebar"}' '{"do":"command","id":"workbench.action.closePanel"}' '{"do":"command","id":"countersign.openSession"}' '{"do":"wait","ms":11000}' '{"do":"focusPanel"}'
+    '{"do":"command","id":"workbench.action.closeSidebar"}' '{"do":"command","id":"workbench.action.closePanel"}' '{"do":"command","id":"countersign.openSession"}' '{"do":"wait","ms":17000}' '{"do":"focusPanel"}'
 wait_log; mark "task C"
 say '{"do":"command","id":"workbench.action.closeAllEditors"}' \
     '{"do":"command","id":"workbench.action.terminal.clear"}' "{\"do\":\"terminal\",\"text\":$(j "git add -A && git commit -qm 'Task B' && git status --short && echo '(clean)' && npm --prefix $REPO run -s setup -- --break-endpoint anthropic")}" '{"do":"wait","ms":7000}' \
@@ -110,10 +112,17 @@ say '{"do":"command","id":"workbench.action.closeAllEditors"}' \
     '{"do":"command","id":"workbench.action.terminal.clear"}' "{\"do\":\"terminal\",\"text\":$(j "git status --short && echo '(no files changed)'")}" '{"do":"wait","ms":3500}' \
     '{"do":"command","id":"countersign.acceptAll"}' '{"do":"waitFor","what":"idle","timeoutMs":120000}' '{"do":"wait","ms":1500}' \
     '{"do":"command","id":"workbench.action.terminal.clear"}' "{\"do\":\"terminal\",\"text\":$(j "$VERIFY_A && git commit -qam 'Task C' && npm --prefix $REPO run -s setup -- --restore anthropic")}" '{"do":"wait","ms":5000}'
+wait_log; mark "reject"
+say '{"do":"select","path":"src/flask/helpers.py","symbol":"get_load_dotenv"}' '{"do":"wait","ms":800}' \
+    "{\"do\":\"inline\",\"text\":$(j "$TASK_REJ"),\"cps\":60}" '{"do":"waitFor","what":"review","timeoutMs":180000}' '{"do":"wait","ms":2500}' \
+    '{"do":"hunk","n":1,"decision":"rejected"}' '{"do":"wait","ms":1300}' '{"do":"hunk","n":2,"decision":"accepted"}' \
+    '{"do":"waitFor","what":"idle","timeoutMs":120000}' '{"do":"wait","ms":1500}' \
+    '{"do":"command","id":"workbench.action.terminal.clear"}' "{\"do\":\"terminal\",\"text\":$(j "git diff -U0 src/flask/helpers.py | grep -E '^[-+] ' ; git commit -qam 'Reject demo'")}" '{"do":"wait","ms":5000}'
 wait_log; mark "stop"
-say "{\"do\":\"agent\",\"text\":$(j "Explain how flask finds the app when you run flask --help, file by file."),\"cps\":70}" '{"do":"waitFor","what":"running","timeoutMs":30000}' '{"do":"wait","ms":7000}' \
-    '{"do":"command","id":"countersign.cancel"}' '{"do":"waitFor","what":"idle","timeoutMs":30000}' '{"do":"wait","ms":1500}' \
-    '{"do":"command","id":"workbench.action.terminal.clear"}' "{\"do\":\"terminal\",\"text\":$(j "git status --short && echo '(clean)'")}" '{"do":"wait","ms":3500}'
+say '{"do":"select","path":"src/flask/helpers.py","symbol":"get_root_path"}' '{"do":"wait","ms":800}' \
+    "{\"do\":\"inline\",\"text\":$(j "$TASK_STOP"),\"cps\":70}" '{"do":"waitFor","what":"running","timeoutMs":30000}' '{"do":"wait","ms":2500}' \
+    '{"do":"command","id":"countersign.cancel"}' '{"do":"waitFor","what":"idle","timeoutMs":30000}' '{"do":"wait","ms":2000}' \
+    '{"do":"command","id":"workbench.action.terminal.clear"}' "{\"do\":\"terminal\",\"text\":$(j "git status --short && echo '(clean: nothing written)'")}" '{"do":"wait","ms":4000}'
 wait_log; mark end
 kill -INT $REC 2>/dev/null || true; wait $REC || true
 python3 scripts/assemble-rec.py "$OUT"
