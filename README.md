@@ -6,7 +6,7 @@ A coding agent for VS Code. You ask for a change; it finds the files itself and 
 
 ![Task A: an inline edit on Flask arrives as two hunks; each is accepted on its own, in the editor and in the panel](media/countersign-task-a.gif)
 
-What the 3:17 demo video shows, on pallets/flask 3.1.3, each step checked in the terminal on screen:
+What the [3:18 demo video](https://youtu.be/1mb-7CJMMH8) shows, on pallets/flask 3.1.3, each step checked in the terminal on screen:
 
 | Time | What you see |
 |---|---|
